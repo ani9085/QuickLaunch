@@ -1,0 +1,52 @@
+{
+  "name": "quicklaunch",
+  "version": "1.0.0",
+  "description": "엘가토 스트림덱 스타일의 로컬 바로가기 런처 (Stream Deck-style local shortcut launcher)",
+  "main": "main.js",
+  "author": "ani9085",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.ani9085.quicklaunch",
+    "productName": "QuickLaunch",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "src/assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "QuickLaunch"
+    },
+    "portable": {
+      "artifactName": "QuickLaunch-Portable-${version}.exe"
+    }
+  }
+}
