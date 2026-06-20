@@ -14,6 +14,8 @@
         <span class="brand-name">QuickLaunch</span>
       </div>
 
+      <button id="modeToggle" class="mode-pill" title="창 크기 전환 (기본 ↔ Lite)">기본</button>
+
       <nav class="deck-tabs" id="deckTabs"></nav>
 
       <div class="topbar-actions">
@@ -23,8 +25,10 @@
           <button data-layout="5x3">5×3</button>
           <button data-layout="5x4">5×4</button>
         </div>
+        <button id="msgBtn" class="icon-btn" title="쪽지함">📬</button>
         <button id="editToggle" class="icon-btn" title="편집 모드">✏️</button>
         <button id="libraryBtn" class="icon-btn" title="라이브러리">📚</button>
+        <button id="libMgrBtn" class="icon-btn" title="라이브러리 관리 (관리자)">🛠️</button>
         <button id="importBtn" class="icon-btn" title="가져오기">📥</button>
         <button id="exportBtn" class="icon-btn" title="내보내기">📤</button>
         <button id="settingsBtn" class="icon-btn" title="설정">⚙️</button>
@@ -139,11 +143,28 @@
         <input id="s_hotkey" type="text" value="CommandOrControl+Shift+Space" />
         <p class="hint">예: CommandOrControl+Shift+Space, Alt+Q</p>
 
-        <label>테마</label>
-        <select id="s_theme">
-          <option value="dark">다크</option>
-          <option value="light">라이트</option>
-        </select>
+        <label>관리자 잠금</label>
+        <p class="hint" style="margin-top:2px">🔒 라이브러리 관리(🛠️)는 관리자 비밀번호로 보호됩니다. 비밀번호는 배포 시 코드에 고정되어 있습니다.</p>
+
+        <label>원격 동기화 (라이브러리 갱신 · 공지)</label>
+        <div class="deck-manage">
+          <label style="margin:0;display:flex;align-items:center;gap:5px">
+            <input type="checkbox" id="s_remoteSync" style="width:auto" /> 사용
+          </label>
+          <button id="s_syncNow" class="mini-btn">지금 동기화</button>
+        </div>
+        <input id="s_remoteUrl" type="text" placeholder="라이브러리 JSON URL (예: https://…/library.json)" />
+        <input id="s_noticeUrl" type="text" placeholder="공지 JSON URL (예: https://…/notice.json)" style="margin-top:6px" />
+        <p class="hint" id="s_syncStatus" style="margin-top:4px"></p>
+
+        <label>앱 테마 (10종)</label>
+        <div id="themeGrid" class="theme-grid"></div>
+
+        <label>표시 모드</label>
+        <div class="deck-manage">
+          <button id="s_modeToggle" class="mini-btn">일반/Lite 전환</button>
+          <span id="s_modeLabel" class="hint" style="margin:0"></span>
+        </div>
 
         <label>덱 관리</label>
         <div class="deck-manage">
@@ -153,10 +174,100 @@
           <button id="deleteDeckBtn" class="mini-btn danger">현재 덱 삭제</button>
         </div>
 
+        <label>업데이트</label>
+        <div class="deck-manage">
+          <button id="s_updateBtn" class="mini-btn">🔄 지금 업데이트 확인</button>
+          <span id="s_updateStatus" class="hint" style="margin:0"></span>
+        </div>
+
         <div class="modal-foot">
           <button id="resetBtn" class="danger">전체 초기화</button>
           <span class="spacer"></span>
           <button class="primary" data-close="settingsModal">닫기</button>
+        </div>
+
+        <p class="credit">앱개발 및 관리자 : 이인성</p>
+      </div>
+    </div>
+
+    <!-- 라이브러리 관리 모달 (관리자용) -->
+    <div id="libMgrModal" class="modal hidden">
+      <div class="modal-card wide">
+        <div class="modal-head">
+          <h2>🛠️ 라이브러리 관리 (관리자)</h2>
+          <button class="close-x" data-close="libMgrModal">✕</button>
+        </div>
+        <p class="hint">배포할 추천 바로가기를 추가·수정·삭제하고, 파일로 내보내 팀에 배포할 수 있습니다.</p>
+
+        <div id="libMgrList" class="libmgr-list"></div>
+
+        <div class="libmgr-form">
+          <input id="lm_label" class="full" type="text" placeholder="이름 (예: 사내 그룹웨어)" />
+          <input id="lm_category" type="text" placeholder="카테고리 (예: 협업/메일)" list="lm_cat_list" />
+          <datalist id="lm_cat_list"></datalist>
+          <select id="lm_type">
+            <option value="url">웹사이트(URL)</option>
+            <option value="app">앱/실행파일</option>
+            <option value="file">파일</option>
+            <option value="folder">폴더</option>
+            <option value="command">명령어</option>
+            <option value="hotkey">키보드 단축키</option>
+          </select>
+          <input id="lm_target" class="full" type="text" placeholder="대상 (URL / 경로 / 명령 / 키조합)" />
+          <input id="lm_icon" type="text" placeholder="아이콘 이모지 (예: 🏛️)" maxlength="4" />
+          <input id="lm_color" type="text" placeholder="배경색 (예: #1a365d)" />
+          <button id="lm_addBtn" class="primary full">＋ 라이브러리에 추가 / 수정</button>
+        </div>
+
+        <div class="modal-foot">
+          <button id="lm_exportBtn" class="ghost">라이브러리 내보내기</button>
+          <button id="lm_importBtn" class="ghost">라이브러리 가져오기</button>
+          <button id="lm_resetBtn" class="danger">기본값 복원</button>
+          <span class="spacer"></span>
+          <button class="primary" data-close="libMgrModal">닫기</button>
+        </div>
+
+        <details class="notice-compose">
+          <summary>📢 전체 쪽지 보내기 (messages.json 내보내기)</summary>
+          <input id="nc_title" type="text" placeholder="쪽지 제목" />
+          <textarea id="nc_body" rows="3" placeholder="쪽지 내용"></textarea>
+          <div class="deck-manage">
+            <span class="hint" style="margin:0">기존 쪽지에 누적되어, GitHub 'QuickLaunch'에 올리면 전원에게 전달됩니다.</span>
+            <span class="spacer"></span>
+            <button id="nc_exportBtn" class="mini-btn">messages.json 내보내기</button>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- 쪽지함 모달 -->
+    <div id="inboxModal" class="modal hidden">
+      <div class="modal-card" style="width:min(460px,92vw)">
+        <div class="modal-head">
+          <h2>📬 쪽지함</h2>
+          <button class="close-x" data-close="inboxModal">✕</button>
+        </div>
+        <div id="inboxList" class="inbox-list"></div>
+        <div class="modal-foot">
+          <span class="spacer"></span>
+          <button class="primary" data-close="inboxModal">확인</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 비밀번호 입력 모달 (관리자 잠금) -->
+    <div id="pwModal" class="modal hidden">
+      <div class="modal-card" style="width:min(360px,92vw)">
+        <div class="modal-head">
+          <h2 id="pwTitle">🔒 관리자 비밀번호</h2>
+          <button class="close-x" data-close="pwModal">✕</button>
+        </div>
+        <input id="pwInput" type="password" placeholder="비밀번호 입력" />
+        <p class="hint" id="pwHint"></p>
+        <div class="modal-foot">
+          <span class="spacer"></span>
+          <button class="ghost" id="pwCancel">취소</button>
+          <button class="primary" id="pwOk">확인</button>
         </div>
       </div>
     </div>

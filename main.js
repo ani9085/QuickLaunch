@@ -8,10 +8,14 @@ const {
   Menu,
   dialog,
   nativeImage,
+  net,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { spawn, exec } = require("child_process");
+
+// 메뉴바 제거 (제목줄 아래 빈 줄 없앰)
+Menu.setApplicationMenu(null);
 
 const isDev = !app.isPackaged;
 const DATA_FILE = path.join(app.getPath("userData"), "quicklaunch-data.json");
@@ -41,16 +45,69 @@ function saveData(data) {
   }
 }
 
+/* -------------------------------- 자동 업데이트 -------------------------------- */
+function setupAutoUpdate() {
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require("electron-updater"));
+  } catch (e) {
+    console.error("electron-updater 로드 실패:", e.message);
+    return;
+  }
+  autoUpdater.autoDownload = true;
+  autoUpdater.on("update-available", (info) => {
+    if (mainWindow) mainWindow.webContents.send("update:status", { state: "available", version: info.version });
+  });
+  autoUpdater.on("download-progress", (p) => {
+    if (mainWindow) mainWindow.webContents.send("update:status", { state: "progress", percent: Math.round(p.percent) });
+  });
+  autoUpdater.on("update-downloaded", (info) => {
+    if (mainWindow) mainWindow.webContents.send("update:status", { state: "downloaded", version: info.version });
+    dialog
+      .showMessageBox(mainWindow, {
+        type: "info",
+        buttons: ["지금 재시작", "나중에"],
+        defaultId: 0,
+        title: "업데이트 준비됨",
+        message: `새 버전 ${info.version} 이(가) 다운로드되었습니다.`,
+        detail: "지금 재시작하면 업데이트가 적용됩니다.",
+      })
+      .then((r) => {
+        if (r.response === 0) {
+          app.isQuitting = true;
+          autoUpdater.quitAndInstall();
+        }
+      });
+  });
+  autoUpdater.on("error", (err) => console.error("자동 업데이트 오류:", err == null ? "unknown" : err.message));
+  // 시작 후 잠시 뒤 확인 (네트워크/창 준비 여유)
+  setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 4000);
+}
+
+// 렌더러에서 수동 업데이트 확인 요청
+ipcMain.handle("update:check", () => {
+  if (!app.isPackaged) return { ok: false, error: "개발 모드에서는 확인 불가" };
+  try {
+    const { autoUpdater } = require("electron-updater");
+    autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
 /* -------------------------------- 윈도우 생성 -------------------------------- */
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1040,
-    height: 720,
-    minWidth: 720,
-    minHeight: 520,
+    width: 560,
+    height: 520,
+    minWidth: 300,
+    minHeight: 280,
+    useContentSize: true,
     backgroundColor: "#15171c",
     autoHideMenuBar: true,
     title: "QuickLaunch",
+    icon: path.join(__dirname, "src", "assets", "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -58,6 +115,7 @@ function createWindow() {
     },
   });
 
+  mainWindow.setMenuBarVisibility(false);
   mainWindow.loadFile(path.join(__dirname, "src", "index.html"));
 
   mainWindow.on("close", (e) => {
@@ -250,6 +308,40 @@ ipcMain.handle("import:open", async () => {
   }
 });
 
+// 콘텐츠(웹뷰) 영역 크기로 창 리사이즈 — 레이아웃/모드 변경 시 호출
+ipcMain.handle("window:resize", (_e, w, h) => {
+  if (!mainWindow) return;
+  const width = Math.max(300, Math.round(w));
+  const height = Math.max(280, Math.round(h));
+  mainWindow.setContentSize(width, height, false);
+  return { ok: true };
+});
+
+// 원격 JSON 가져오기 (라이브러리/공지) — Electron net은 시스템 프록시를 따르므로 사내망에서 유리
+ipcMain.handle("net:fetch", (_e, url) => {
+  return new Promise((resolve) => {
+    try {
+      const req = net.request({ url, redirect: "follow" });
+      let body = "";
+      req.on("response", (res) => {
+        res.on("data", (c) => (body += c.toString()));
+        res.on("end", () =>
+          resolve({
+            ok: res.statusCode >= 200 && res.statusCode < 300,
+            status: res.statusCode,
+            body,
+          })
+        );
+      });
+      req.on("error", (err) => resolve({ ok: false, error: err.message }));
+      req.setHeader("Cache-Control", "no-cache");
+      req.end();
+    } catch (e) {
+      resolve({ ok: false, error: e.message });
+    }
+  });
+});
+
 ipcMain.handle("window:hide", () => mainWindow && mainWindow.hide());
 ipcMain.handle("window:quit", () => {
   app.isQuitting = true;
@@ -293,6 +385,9 @@ if (!gotLock) {
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
+
+    // 자동 업데이트 (GitHub Releases). 패키지 빌드에서만 동작.
+    if (app.isPackaged) setupAutoUpdate();
   });
 
   app.on("window-all-closed", () => {

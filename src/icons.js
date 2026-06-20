@@ -50,11 +50,65 @@ window.ALL_ICONS = window.ICON_LIBRARY.reduce(
   []
 );
 
-// 배경 색상 팔레트 (스킨)
-window.COLOR_PALETTE = [
-  "#2d3748", "#1a365d", "#22543d", "#742a2a", "#553c9a",
-  "#744210", "#2c5282", "#285e61", "#9b2c2c", "#6b46c1",
-  "#2b6cb0", "#2f855a", "#c05621", "#b7791f", "#4a5568",
-  "#e53e3e", "#38a169", "#3182ce", "#805ad5", "#dd6b20",
-  "#0f1115", "#000000", "#ffffff", "#ed64a6", "#319795",
+// 배경 색상 팔레트 (스킨) — 진한색 / 파스텔 / 중성색 그룹
+window.COLOR_GROUPS = [
+  {
+    name: "진한색",
+    colors: [
+      "#2d3748", "#1a365d", "#22543d", "#742a2a", "#553c9a",
+      "#744210", "#2c5282", "#285e61", "#9b2c2c", "#6b46c1",
+      "#2b6cb0", "#2f855a", "#c05621", "#b7791f", "#4a5568",
+      "#e53e3e", "#38a169", "#3182ce", "#805ad5", "#dd6b20",
+      "#0f1115", "#000000", "#ed64a6", "#319795", "#d53f8c",
+    ],
+  },
+  {
+    name: "파스텔",
+    colors: [
+      "#ffd6e0", "#ffb3c1", "#ffd8be", "#ffcfb3", "#fff3b0",
+      "#ffec99", "#c7f9cc", "#b7e4c7", "#bde0fe", "#a2d2ff",
+      "#c5cbff", "#e0c3fc", "#d8b4fe", "#e6c9e0", "#ffc9b9",
+      "#b8f2e6", "#a0e7e5", "#caffbf", "#fdffb6", "#9bf6ff",
+      "#bdb2ff", "#ffc6ff", "#f1c0e8", "#cfbaf0", "#a3c4f3",
+    ],
+  },
+  {
+    name: "중성색",
+    colors: [
+      "#ffffff", "#f1f5f9", "#e2e8f0", "#cbd5e1", "#94a3b8",
+      "#64748b", "#475569", "#334155", "#1e293b", "#0f172a",
+    ],
+  },
+];
+
+// 평탄화 (하위호환)
+window.COLOR_PALETTE = window.COLOR_GROUPS.reduce(
+  (a, g) => a.concat(g.colors),
+  []
+);
+
+// 파스텔 배경에는 어두운 글자색이 어울리므로 자동 판별용 헬퍼
+window.isLightColor = function (hex) {
+  if (!hex) return false;
+  const c = hex.replace("#", "");
+  if (c.length !== 6) return false;
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  // 상대 휘도
+  return 0.299 * r + 0.587 * g + 0.114 * b > 160;
+};
+
+/* ---- 앱(프로그램) 테마 10종 — 흰색/검정/회색 등 ---- */
+window.THEMES = [
+  { key: "dark",     name: "다크",     vars: { "--bg": "#15171c", "--bg-2": "#1d2027", "--bg-3": "#262a33", "--border": "#333845", "--text": "#e8ebf0", "--text-dim": "#9aa3b2", "--accent": "#4c8dff", "--accent-2": "#2f6fe0" } },
+  { key: "black",    name: "블랙",     vars: { "--bg": "#000000", "--bg-2": "#0c0c0e", "--bg-3": "#16161a", "--border": "#26262c", "--text": "#f2f2f5", "--text-dim": "#8a8a96", "--accent": "#5b9dff", "--accent-2": "#3a7de0" } },
+  { key: "charcoal", name: "차콜",     vars: { "--bg": "#23262b", "--bg-2": "#2b2f36", "--bg-3": "#343941", "--border": "#444b55", "--text": "#eceef2", "--text-dim": "#a3acb9", "--accent": "#6aa0ff", "--accent-2": "#477fe0" } },
+  { key: "gray",     name: "그레이",   vars: { "--bg": "#cfd4db", "--bg-2": "#dde1e7", "--bg-3": "#e8ebef", "--border": "#b3bac4", "--text": "#23272e", "--text-dim": "#5a626e", "--accent": "#3b73d9", "--accent-2": "#2c5bb5" } },
+  { key: "light",    name: "라이트",   vars: { "--bg": "#eef1f5", "--bg-2": "#ffffff", "--bg-3": "#e6eaf0", "--border": "#cdd4de", "--text": "#1a1d23", "--text-dim": "#5a6373", "--accent": "#3b82f6", "--accent-2": "#2563eb" } },
+  { key: "white",    name: "화이트",   vars: { "--bg": "#ffffff", "--bg-2": "#f7f8fa", "--bg-3": "#eef0f3", "--border": "#dde1e7", "--text": "#15171c", "--text-dim": "#6b7280", "--accent": "#2563eb", "--accent-2": "#1d4ed8" } },
+  { key: "navy",     name: "네이비",   vars: { "--bg": "#0f1b2d", "--bg-2": "#15243a", "--bg-3": "#1d3050", "--border": "#2c466e", "--text": "#e6edf6", "--text-dim": "#8da3c0", "--accent": "#56a0ff", "--accent-2": "#3a82e6" } },
+  { key: "forest",   name: "포레스트", vars: { "--bg": "#10231a", "--bg-2": "#163026", "--bg-3": "#1e4032", "--border": "#2d5a47", "--text": "#e7f3ec", "--text-dim": "#92b6a4", "--accent": "#4cc38a", "--accent-2": "#34a070" } },
+  { key: "wine",     name: "와인",     vars: { "--bg": "#241016", "--bg-2": "#31161e", "--bg-3": "#421d29", "--border": "#5e2c3b", "--text": "#f6e7ec", "--text-dim": "#c09aa6", "--accent": "#ff5b86", "--accent-2": "#e03a6a" } },
+  { key: "sand",     name: "샌드",     vars: { "--bg": "#f3ece1", "--bg-2": "#fbf6ee", "--bg-3": "#ece2d2", "--border": "#d8c9b4", "--text": "#3a2f22", "--text-dim": "#7a6c58", "--accent": "#c0763b", "--accent-2": "#a55f2a" } },
 ];
