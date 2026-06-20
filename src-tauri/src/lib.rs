@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
-    Manager, WindowEvent,
+    Emitter, Manager, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+use tauri_plugin_updater::UpdaterExt;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -228,6 +229,62 @@ fn set_global_hotkey(app: tauri::AppHandle, accel: String) -> Result<(), String>
     gs.register(sc).map_err(|e| e.to_string())
 }
 
+// 업데이트 확인 → 있으면 다운로드+설치(프런트에 상태 emit). 재시작은 사용자 확인 후.
+async fn run_update(app: tauri::AppHandle) {
+    let updater = match app.updater() {
+        Ok(u) => u,
+        Err(e) => {
+            let _ = app.emit("update://status", serde_json::json!({"state":"error","error": e.to_string()}));
+            return;
+        }
+    };
+    match updater.check().await {
+        Ok(Some(update)) => {
+            let version = update.version.clone();
+            let _ = app.emit("update://status", serde_json::json!({"state":"available","version": version}));
+            let downloaded = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+            let app2 = app.clone();
+            let dl = downloaded.clone();
+            let res = update
+                .download_and_install(
+                    move |chunk, total| {
+                        let cur = dl.fetch_add(chunk as u64, std::sync::atomic::Ordering::Relaxed) + chunk as u64;
+                        if let Some(t) = total {
+                            let pct = ((cur as f64 / t as f64) * 100.0) as u64;
+                            let _ = app2.emit("update://status", serde_json::json!({"state":"progress","percent": pct}));
+                        }
+                    },
+                    || {},
+                )
+                .await;
+            match res {
+                Ok(_) => {
+                    let _ = app.emit("update://status", serde_json::json!({"state":"downloaded","version": update.version}));
+                }
+                Err(e) => {
+                    let _ = app.emit("update://status", serde_json::json!({"state":"error","error": e.to_string()}));
+                }
+            }
+        }
+        Ok(None) => {
+            let _ = app.emit("update://status", serde_json::json!({"state":"none"}));
+        }
+        Err(e) => {
+            let _ = app.emit("update://status", serde_json::json!({"state":"error","error": e.to_string()}));
+        }
+    }
+}
+
+#[tauri::command]
+fn check_update(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(run_update(app));
+}
+
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle) {
+    app.restart();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -246,6 +303,7 @@ pub fn run() {
                 })
                 .build(),
         )
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             load_data,
             save_data,
@@ -258,7 +316,9 @@ pub fn run() {
             resize_window,
             hide_window,
             quit_app,
-            set_global_hotkey
+            set_global_hotkey,
+            check_update,
+            restart_app
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -304,6 +364,12 @@ pub fn run() {
                 })
                 .unwrap_or_else(|| "CommandOrControl+Shift+Space".to_string());
             let _ = set_global_hotkey(handle.clone(), accel);
+
+            // 시작 시 자동 업데이트 확인
+            let up_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                run_update(up_handle).await;
+            });
 
             Ok(())
         })

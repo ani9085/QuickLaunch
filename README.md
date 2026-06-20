@@ -48,7 +48,23 @@ npx tauri build          # → src-tauri/target/release/bundle/nsis/QuickLaunch_
 npx tauri dev            # 개발 실행
 ```
 
-전역 단축키·트레이·파일 다이얼로그·원격 동기화·SendKeys 모두 Tauri에서 동작합니다. (자동 업데이트는 Tauri updater로 별도 구성 예정)
+전역 단축키·트레이·파일 다이얼로그·원격 동기화·SendKeys·**자동 업데이트** 모두 Tauri에서 동작합니다.
+
+### 자동 업데이트 (Tauri updater)
+
+앱 시작 시 `https://github.com/ani9085/QuickLaunch/releases/latest/download/latest.json`을 확인해, 더 높은 버전이 있으면 서명 검증 후 다운로드하고 재시작 시 적용합니다. 공개키는 `tauri.conf.json`에 들어 있습니다.
+
+**새 버전 배포 절차(관리자):**
+```bash
+# 1) 버전 올리기: src-tauri/tauri.conf.json 의 "version" 을 예: 1.0.1 로 수정
+# 2) 서명 키로 빌드 (개인키는 ~/.tauri/ql_updater.key, git에 없음)
+export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/ql_updater.key)"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+npx tauri build
+# 3) GitHub에 새 릴리스(tag v1.0.1) 생성하고 아래 3개 업로드:
+#    QuickLaunch_1.0.1_x64-setup.exe, *.sig, latest.json(버전/서명/url 갱신)
+```
+> ⚠️ 개인키(`ql_updater.key`)를 잃어버리면 더 이상 서명된 업데이트를 낼 수 없습니다 — 안전하게 보관하세요.
 
 ## 📦 exe 빌드 (Electron 레거시)
 
