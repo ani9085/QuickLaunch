@@ -23,17 +23,8 @@
       "csp": null
     }
   },
-  "plugins": {
-    "updater": {
-      "endpoints": [
-        "https://github.com/ani9085/QuickLaunch/releases/latest/download/latest.json"
-      ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY2RkFBNDZBQjI4NDVGMjkKUldRcFg0U3lhcVQ2Wm8yRmJSc2ZiVXh1OTZrSnhHOU04THpDTTZJbXhlR1JSV1BHRzNqZDU1WVkK"
-    }
-  },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": true,
     "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",

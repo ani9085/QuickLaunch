@@ -57,24 +57,5 @@
         .then(() => ({ ok: true }))
         .catch((e) => ({ ok: false, error: String(e) })),
     resizeWindow: (w, h) => invoke("resize_window", { w, h }),
-    fetchUrl: (url) => invoke("fetch_url", { url }),
-    checkUpdate: () =>
-      invoke("check_update")
-        .then(() => ({ ok: true }))
-        .catch((e) => ({ ok: false, error: String(e) })),
-    onUpdateStatus: (cb) => {
-      const { listen } = window.__TAURI__.event;
-      listen("update://status", (e) => {
-        const d = e.payload || {};
-        try {
-          cb(d);
-        } catch (_) {}
-        if (d.state === "downloaded") {
-          if (confirm("업데이트가 준비되었습니다 (v" + (d.version || "") + "). 지금 재시작할까요?")) {
-            invoke("restart_app");
-          }
-        }
-      });
-    },
   };
 })();

@@ -55,7 +55,9 @@ body.lite .mode-pill::before { content: "🗗 "; }
 .deck-tab.active { background: var(--accent); color: #fff; }
 
 /* 액션 버튼들은 두 번째 줄로 내려 우측 정렬 */
-.topbar-actions { display: flex; align-items: center; gap: 6px; flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; }
+/* 2번째 줄: 크기 조절 (좌측) / 3번째 줄: 아이콘 (좌측) */
+.size-row { flex: 1 1 100%; display: flex; justify-content: flex-start; }
+.topbar-actions { display: flex; align-items: center; gap: 6px; flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
 /* 검색창은 첫 줄 오른쪽 끝(잘 안 쓰므로 작게) */
 .search {
   margin-left: auto; flex: 0 0 auto;
@@ -189,6 +191,8 @@ body.lite .mode-pill::before { content: "🗗 "; }
 .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .tab-pane { display: none; }
 .tab-pane.active { display: block; }
+.stab-pane { display: none; }
+.stab-pane.active { display: block; }
 
 .appearance { display: flex; gap: 16px; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
 .appearance-col { display: flex; flex-direction: column; }
@@ -243,6 +247,10 @@ body.lite .mode-pill::before { content: "🗗 "; }
 .notice-compose { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
 .notice-compose summary { cursor: pointer; font-size: 13px; color: var(--accent); }
 .notice-compose input { margin-top: 8px; }
+.nc-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.nc-row { display: flex; align-items: center; gap: 8px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 8px; padding: 5px 9px; font-size: 13px; }
+.nc-row .nc-t { flex: 1; overflow: hidden; }
+.nc-row .nc-t small { color: var(--text-dim); font-size: 11px; }
 
 .deck-manage { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .deck-manage input { flex: 1; min-width: 120px; }

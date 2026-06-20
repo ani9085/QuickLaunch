@@ -29,12 +29,6 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
 /* ------------------------------- 초기화 ------------------------------- */
-// 기본 원격 동기화 위치 = GitHub 'QuickLaunch' 저장소 (raw)
-const DEFAULT_REMOTE_LIB =
-  "https://raw.githubusercontent.com/ani9085/QuickLaunch/main/library.json";
-const DEFAULT_REMOTE_MSG =
-  "https://raw.githubusercontent.com/ani9085/QuickLaunch/main/messages.json";
-
 // 모드별 타일/여백 크기
 //  normal = 기본 창(100px), lite = 작게(50px)
 const SIZES = {
@@ -52,28 +46,16 @@ function defaultState() {
       globalHotkey: "CommandOrControl+Shift+Space",
       theme: "dark",
       liteMode: false,
-      remoteSync: true,
-      remoteUrl: DEFAULT_REMOTE_LIB,
-      noticeUrl: DEFAULT_REMOTE_MSG,
-      lastNoticeId: null,
       seenMessageIds: [],
     },
-    library: null, // 관리자가 앱에서 편집한 사본 (libraryEdited=true일 때만 사용)
-    libraryEdited: false, // 관리자가 앱 내에서 직접 편집했는지
-    remoteLibrary: null, // 원격 동기화 캐시 (오프라인 시에도 사용)
-    messages: [], // 관리자 쪽지/공지 (원격 messages.json 캐시)
+    library: null, // 관리자가 앱에서 편집/가져온 라이브러리 (libraryEdited=true일 때 사용)
+    libraryEdited: false, // 관리자가 편집했거나 라이브러리 파일을 가져왔는지
+    messages: [], // 공지 (라이브러리 파일에 함께 담겨 배포/가져오기)
   };
 }
 
-// 우선순위: (원격 동기화 켜짐+수신) > (관리자가 앱에서 편집) > 코드 기본값(SHORTCUT_LIBRARY)
-// 코드(library.js)를 기준으로 삼아, 재빌드 시 라이브러리 변경이 항상 반영되게 함.
+// 우선순위: (관리자 편집/가져온 라이브러리) > 코드 기본값(SHORTCUT_LIBRARY)
 function getLibrary() {
-  if (
-    state.settings.remoteSync &&
-    Array.isArray(state.remoteLibrary) &&
-    state.remoteLibrary.length
-  )
-    return state.remoteLibrary;
   if (state.libraryEdited && Array.isArray(state.library) && state.library.length)
     return state.library;
   return SHORTCUT_LIBRARY;
@@ -86,11 +68,8 @@ async function init() {
   if (!state.settings) state.settings = defaultState().settings;
   if (state.settings.liteMode === undefined) state.settings.liteMode = false;
   if (!state.settings.theme) state.settings.theme = "dark";
-  // 원격 동기화 기본값 보정 (구버전 데이터)
-  if (!state.settings.remoteUrl) state.settings.remoteUrl = DEFAULT_REMOTE_LIB;
-  if (!state.settings.noticeUrl) state.settings.noticeUrl = DEFAULT_REMOTE_MSG;
-  if (state.settings.remoteSync === undefined) state.settings.remoteSync = true;
   if (!Array.isArray(state.settings.seenMessageIds)) state.settings.seenMessageIds = [];
+  if (!Array.isArray(state.messages)) state.messages = [];
   // 첫 실행이면 라이브러리 일부를 기본 덱에 미리 채워줌
   if (!loaded) seedDefaultDeck();
   applyTheme();
@@ -101,15 +80,7 @@ async function init() {
   bindEvents();
   fitWindow();
   $("#hotkeyHint").textContent = "전역 단축키: " + state.settings.globalHotkey;
-  renderInboxBadge(); // 캐시된 쪽지의 미읽음 배지
-  // 자동 업데이트 상태 알림
-  if (window.api.onUpdateStatus)
-    window.api.onUpdateStatus((d) => {
-      if (d.state === "available") setStatus("업데이트 확인됨: v" + d.version + " 내려받는 중…");
-      else if (d.state === "progress") setStatus("업데이트 다운로드 " + d.percent + "%");
-      else if (d.state === "downloaded") setStatus("업데이트 준비됨: v" + d.version);
-    });
-  syncRemote(false); // 시작 시 백그라운드 동기화 (실패해도 무방)
+  renderInboxBadge(); // 공지 미읽음 배지
 }
 
 function seedDefaultDeck() {
@@ -487,66 +458,7 @@ async function requestAdminAccess() {
   }
 }
 
-/* ----------------------- 원격 동기화 (라이브러리/공지) ----------------------- */
-// 앱 시작 시/수동으로 호출. 실패해도 로컬/캐시로 계속 동작 (오프라인 안전)
-async function syncRemote(manual) {
-  const s = state.settings;
-  if (!s.remoteSync && !manual) return;
-  if (!s.remoteUrl && !s.noticeUrl) {
-    if (manual) toast("동기화할 URL이 설정되지 않았습니다.");
-    return;
-  }
-  let okCount = 0;
-  // 1) 라이브러리
-  if (s.remoteUrl) {
-    try {
-      const res = await window.api.fetchUrl(s.remoteUrl);
-      if (!res.ok) throw new Error(res.error || "HTTP " + res.status);
-      const data = JSON.parse(res.body);
-      const lib = data.library || (Array.isArray(data) ? data : null);
-      if (!lib || !Array.isArray(lib)) throw new Error("라이브러리 형식 아님");
-      state.remoteLibrary = lib;
-      okCount++;
-      // 열려 있으면 갱신
-      if (!$("#editModal").classList.contains("hidden")) buildLibPicker();
-      if (!$("#libraryModal").classList.contains("hidden")) buildLibraryFull();
-    } catch (e) {
-      setStatus("라이브러리 동기화 실패(로컬 사용): " + e.message);
-    }
-  }
-  // 2) 쪽지/공지 (관리자 → 전체 브로드캐스트). 배열 또는 단일 객체 모두 지원
-  if (s.noticeUrl) {
-    try {
-      const res = await window.api.fetchUrl(s.noticeUrl);
-      if (res.ok) {
-        const data = JSON.parse(res.body);
-        let msgs = Array.isArray(data)
-          ? data
-          : data.messages || (data.title ? [data] : []);
-        msgs = msgs
-          .filter((m) => m && m.title)
-          .map((m) => ({
-            id: String(m.id != null ? m.id : m.date || m.title),
-            title: m.title,
-            body: m.body || "",
-            date: m.date || "",
-          }));
-        state.messages = msgs;
-        okCount++;
-        renderInboxBadge();
-        const unread = msgs.filter((m) => !s.seenMessageIds.includes(m.id));
-        if (unread.length) openInbox(true); // 새 쪽지 있으면 자동 표시
-      }
-    } catch (e) {
-      /* 쪽지는 조용히 무시 */
-    }
-  }
-  persist(); // 캐시 저장
-  updateSyncStatus();
-  if (manual) toast(okCount ? "동기화 완료" : "동기화 실패 — URL/네트워크 확인");
-}
-
-/* 쪽지함 (받은 공지 목록) */
+/* 공지 (라이브러리 파일에 함께 담겨 배포) */
 function renderInboxBadge() {
   const btn = $("#msgBtn");
   if (!btn) return;
@@ -594,15 +506,6 @@ function openInbox(auto) {
   show("inboxModal");
 }
 
-function updateSyncStatus() {
-  const el = $("#s_syncStatus");
-  if (!el) return;
-  const s = state.settings;
-  el.textContent = s.remoteSync
-    ? "상태: 사용 중" + (state.remoteLibrary ? " · 라이브러리 동기화됨" : " · 아직 받지 못함")
-    : "상태: 사용 안 함 (로컬 라이브러리 사용)";
-}
-
 /* ------------------------- 라이브러리 관리 (관리자) ------------------------- */
 let libMgrEditing = null; // {ci, ii} 또는 null
 
@@ -623,6 +526,7 @@ function openLibMgr() {
   buildLmPickers();
   clearLibForm();
   renderLibMgr();
+  renderNcList();
   show("libMgrModal");
 }
 
@@ -769,53 +673,87 @@ function libMgrAddOrUpdate() {
   toast("저장됨: " + label);
 }
 
+// 라이브러리 + 공지를 하나의 로컬 파일로 내보내기 (관리자 → 배포)
 async function libMgrExport() {
   ensureLibraryCopy();
   const json = JSON.stringify(
-    { __quicklaunchLibrary: true, version: 1, library: state.library },
+    {
+      __quicklaunchLibrary: true,
+      version: 1,
+      library: state.library,
+      messages: state.messages || [],
+    },
     null,
     2
   );
   const res = await window.api.exportSave(json);
-  if (res.ok) toast("라이브러리 내보냄: " + res.path);
+  if (res.ok) toast("라이브러리 + 공지 내보냄: " + res.path);
   else if (!res.canceled) toast("내보내기 실패: " + res.error);
 }
 
-async function libMgrImport() {
+// 공지 작성 → 로컬 state.messages 에 추가 (라이브러리 내보내기에 함께 담김)
+function noticeAdd() {
+  const title = $("#nc_title").value.trim();
+  const body = $("#nc_body").value.trim();
+  if (!title) return toast("공지 제목을 입력하세요.");
+  if (!Array.isArray(state.messages)) state.messages = [];
+  state.messages.push({
+    id: Date.now(),
+    title,
+    body,
+    date: new Date().toISOString().slice(0, 10),
+  });
+  markLibraryEdited();
+  persist();
+  $("#nc_title").value = "";
+  $("#nc_body").value = "";
+  renderNcList();
+  renderInboxBadge();
+  toast("공지 추가됨");
+}
+
+// libMgr 안의 작성된 공지 목록 (삭제 가능)
+function renderNcList() {
+  const wrap = $("#nc_list");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  (state.messages || []).forEach((m, i) => {
+    const row = document.createElement("div");
+    row.className = "nc-row";
+    row.innerHTML = `<span class="nc-t">📢 ${escapeHtml(m.title)} <small>${escapeHtml(m.date)}</small></span>`;
+    const del = document.createElement("button");
+    del.className = "mini-btn danger";
+    del.textContent = "삭제";
+    del.onclick = () => {
+      state.messages.splice(i, 1);
+      markLibraryEdited();
+      persist();
+      renderNcList();
+      renderInboxBadge();
+    };
+    row.appendChild(del);
+    wrap.appendChild(row);
+  });
+}
+
+// 설정 → 라이브러리 파일 가져오기 (바로가기 + 공지 함께 갱신)
+async function importLibrary() {
   const res = await window.api.importOpen();
   if (res.canceled) return;
   if (!res.ok) return toast("가져오기 실패: " + res.error);
   try {
     const data = JSON.parse(res.data);
     const lib = data.library || (Array.isArray(data) ? data : null);
-    if (!lib || !Array.isArray(lib)) throw new Error("라이브러리 형식이 아닙니다.");
+    if (!lib || !Array.isArray(lib)) throw new Error("라이브러리 파일이 아닙니다.");
     state.library = lib;
+    if (Array.isArray(data.messages)) state.messages = data.messages;
     markLibraryEdited();
     persist();
-    renderLibMgr();
-    toast("라이브러리 가져옴 (" + lib.length + "개 카테고리)");
+    renderInboxBadge();
+    toast("라이브러리 갱신됨 (" + lib.length + "개 카테고리)");
   } catch (e) {
     toast("가져오기 실패: " + e.message);
   }
-}
-
-async function noticeExport() {
-  const title = $("#nc_title").value.trim();
-  const body = $("#nc_body").value.trim();
-  if (!title) return toast("공지 제목을 입력하세요.");
-  const msg = {
-    id: Date.now(),
-    title,
-    body,
-    date: new Date().toISOString().slice(0, 10),
-  };
-  // messages.json = 배열. 기존 원격 쪽지가 있으면 합쳐서 누적
-  const existing = Array.isArray(state.messages) ? state.messages : [];
-  const messages = [...existing, msg];
-  const res = await window.api.exportSave(JSON.stringify(messages, null, 2));
-  if (res.ok)
-    toast("messages.json 내보냄 — GitHub 'QuickLaunch'에 올리면 전원에게 전달됩니다");
-  else if (!res.canceled) toast("내보내기 실패: " + res.error);
 }
 
 function libMgrReset() {
@@ -863,11 +801,17 @@ function openSettings() {
   $("#s_hotkey").value = state.settings.globalHotkey;
   buildThemeGrid();
   updateModeLabel();
-  $("#s_remoteSync").checked = !!state.settings.remoteSync;
-  $("#s_remoteUrl").value = state.settings.remoteUrl || "";
-  $("#s_noticeUrl").value = state.settings.noticeUrl || "";
-  updateSyncStatus();
+  switchSettingsTab("general");
   show("settingsModal");
+}
+
+function switchSettingsTab(name) {
+  $$("#settingsTabs .tab").forEach((t) =>
+    t.classList.toggle("active", t.dataset.stab === name)
+  );
+  $$('#settingsModal .stab-pane').forEach((p) =>
+    p.classList.toggle("active", p.dataset.spane === name)
+  );
 }
 
 function updateModeLabel() {
@@ -1021,19 +965,8 @@ function bindEvents() {
   $("#modeToggle").onclick = toggleLiteMode;
   updateModePill();
 
-  // 라이브러리 관리(관리자)
-  $("#libMgrBtn").onclick = requestAdminAccess;
-
-  // 쪽지함
+  // 공지사항
   $("#msgBtn").onclick = () => openInbox(false);
-
-  // 업데이트 수동 확인
-  $("#s_updateBtn").onclick = async () => {
-    $("#s_updateStatus").textContent = "확인 중…";
-    const r = await window.api.checkUpdate();
-    if (!r.ok) $("#s_updateStatus").textContent = r.error || "확인 실패";
-    else $("#s_updateStatus").textContent = "최신 여부 확인 중… (있으면 자동 다운로드)";
-  };
 
   // 편집 모드 토글
   $("#editToggle").onclick = () => {
@@ -1048,8 +981,6 @@ function bindEvents() {
 
   // 상단 버튼
   $("#libraryBtn").onclick = () => { buildLibraryFull(); show("libraryModal"); };
-  $("#exportBtn").onclick = doExport;
-  $("#importBtn").onclick = doImport;
   $("#settingsBtn").onclick = openSettings;
 
   // 모달 닫기 (x, data-close)
@@ -1099,7 +1030,7 @@ function bindEvents() {
     }
   };
 
-  // 설정
+  // 설정 — 일반
   $("#s_hotkey").onchange = applyHotkey;
   $("#s_modeToggle").onclick = toggleLiteMode;
   $("#addDeckBtn").onclick = addDeck;
@@ -1107,26 +1038,20 @@ function bindEvents() {
   $("#deleteDeckBtn").onclick = deleteDeck;
   $("#resetBtn").onclick = resetAll;
 
-  // 원격 동기화
-  $("#s_remoteSync").onchange = () => {
-    state.settings.remoteSync = $("#s_remoteSync").checked;
-    persist();
-    updateSyncStatus();
-    if (state.settings.remoteSync) syncRemote(false);
-  };
-  $("#s_remoteUrl").onchange = () => {
-    state.settings.remoteUrl = $("#s_remoteUrl").value.trim();
-    persist();
-  };
-  $("#s_noticeUrl").onchange = () => {
-    state.settings.noticeUrl = $("#s_noticeUrl").value.trim();
-    persist();
-  };
-  $("#s_syncNow").onclick = () => {
-    state.settings.remoteUrl = $("#s_remoteUrl").value.trim();
-    state.settings.noticeUrl = $("#s_noticeUrl").value.trim();
-    persist();
-    syncRemote(true);
+  // 설정 — 탭 전환
+  $$("#settingsTabs .tab").forEach((t) => {
+    t.onclick = () => switchSettingsTab(t.dataset.stab);
+  });
+
+  // 설정 — 가져오기/보내기
+  $("#s_libImportBtn").onclick = importLibrary;
+  $("#s_deckExportBtn").onclick = doExport;
+  $("#s_deckImportBtn").onclick = doImport;
+
+  // 설정 — 관리자
+  $("#s_libMgrBtn").onclick = () => {
+    hide("settingsModal");
+    requestAdminAccess();
   };
 
   // 비밀번호 모달
@@ -1141,9 +1066,8 @@ function bindEvents() {
   // 라이브러리 관리자 폼
   $("#lm_addBtn").onclick = libMgrAddOrUpdate;
   $("#lm_exportBtn").onclick = libMgrExport;
-  $("#lm_importBtn").onclick = libMgrImport;
   $("#lm_resetBtn").onclick = libMgrReset;
-  $("#nc_exportBtn").onclick = noticeExport;
+  $("#nc_addBtn").onclick = noticeAdd;
 
   // ESC로 모달 닫기
   document.onkeydown = (e) => {

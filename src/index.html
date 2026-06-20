@@ -20,7 +20,8 @@
 
       <input id="searchInput" class="search" type="text" placeholder="🔍 검색…" />
 
-      <div class="topbar-actions">
+      <!-- 2번째 줄: 크기 조절 -->
+      <div class="size-row">
         <div class="size-controls" id="sizeControls">
           <span class="sc-label">가로</span>
           <button id="colMinus" class="sc-btn" title="가로 줄이기">−</button>
@@ -32,12 +33,13 @@
           <span id="rowVal" class="sc-val">3</span>
           <button id="rowPlus" class="sc-btn" title="세로 늘리기">+</button>
         </div>
+      </div>
+
+      <!-- 3번째 줄: 아이콘 (좌측 정렬) -->
+      <div class="topbar-actions">
         <button id="msgBtn" class="icon-btn" title="공지사항">📢</button>
         <button id="editToggle" class="icon-btn" title="편집 모드">✏️</button>
         <button id="libraryBtn" class="icon-btn" title="라이브러리">📚</button>
-        <button id="libMgrBtn" class="icon-btn" title="라이브러리 관리 (관리자)">🛠️</button>
-        <button id="importBtn" class="icon-btn" title="가져오기">📥</button>
-        <button id="exportBtn" class="icon-btn" title="내보내기">📤</button>
         <button id="settingsBtn" class="icon-btn" title="설정">⚙️</button>
       </div>
     </header>
@@ -146,46 +148,61 @@
           <button class="close-x" data-close="settingsModal">✕</button>
         </div>
 
-        <label>전역 단축키 (창 열기/숨기기)</label>
-        <input id="s_hotkey" type="text" value="CommandOrControl+Shift+Space" />
-        <p class="hint">예: CommandOrControl+Shift+Space, Alt+Q</p>
-
-        <label>관리자 잠금</label>
-        <p class="hint" style="margin-top:2px">🔒 라이브러리 관리(🛠️)는 관리자 비밀번호로 보호됩니다. 비밀번호는 배포 시 코드에 고정되어 있습니다.</p>
-
-        <label>원격 동기화 (라이브러리 갱신 · 공지)</label>
-        <div class="deck-manage">
-          <label style="margin:0;display:flex;align-items:center;gap:5px">
-            <input type="checkbox" id="s_remoteSync" style="width:auto" /> 사용
-          </label>
-          <button id="s_syncNow" class="mini-btn">지금 동기화</button>
-        </div>
-        <input id="s_remoteUrl" type="text" placeholder="라이브러리 JSON URL (예: https://…/library.json)" />
-        <input id="s_noticeUrl" type="text" placeholder="공지 JSON URL (예: https://…/notice.json)" style="margin-top:6px" />
-        <p class="hint" id="s_syncStatus" style="margin-top:4px"></p>
-
-        <label>앱 테마 (10종)</label>
-        <div id="themeGrid" class="theme-grid"></div>
-
-        <label>표시 모드</label>
-        <div class="deck-manage">
-          <button id="s_modeToggle" class="mini-btn">일반/Lite 전환</button>
-          <span id="s_modeLabel" class="hint" style="margin:0"></span>
+        <div class="tabs" id="settingsTabs">
+          <button class="tab active" data-stab="general">일반</button>
+          <button class="tab" data-stab="decks">덱 관리</button>
+          <button class="tab" data-stab="io">가져오기/보내기</button>
+          <button class="tab" data-stab="admin">관리자</button>
         </div>
 
-        <label>덱 관리</label>
-        <div class="deck-manage">
-          <input id="newDeckName" type="text" placeholder="새 덱 이름" />
-          <button id="addDeckBtn" class="mini-btn">+ 덱 추가</button>
-          <button id="renameDeckBtn" class="mini-btn">현재 덱 이름변경</button>
-          <button id="deleteDeckBtn" class="mini-btn danger">현재 덱 삭제</button>
-        </div>
+        <!-- 일반 -->
+        <section class="stab-pane active" data-spane="general">
+          <label>전역 단축키 (창 열기/숨기기)</label>
+          <input id="s_hotkey" type="text" value="CommandOrControl+Shift+Space" />
+          <p class="hint">예: CommandOrControl+Shift+Space, Alt+Q</p>
 
-        <label>업데이트</label>
-        <div class="deck-manage">
-          <button id="s_updateBtn" class="mini-btn">🔄 지금 업데이트 확인</button>
-          <span id="s_updateStatus" class="hint" style="margin:0"></span>
-        </div>
+          <label>앱 테마 (10종)</label>
+          <div id="themeGrid" class="theme-grid"></div>
+
+          <label>표시 모드</label>
+          <div class="deck-manage">
+            <button id="s_modeToggle" class="mini-btn">일반/Lite 전환</button>
+            <span id="s_modeLabel" class="hint" style="margin:0"></span>
+          </div>
+        </section>
+
+        <!-- 덱 관리 -->
+        <section class="stab-pane" data-spane="decks">
+          <label>덱 관리</label>
+          <div class="deck-manage">
+            <input id="newDeckName" type="text" placeholder="새 덱 이름" />
+            <button id="addDeckBtn" class="mini-btn">+ 덱 추가</button>
+            <button id="renameDeckBtn" class="mini-btn">현재 덱 이름변경</button>
+            <button id="deleteDeckBtn" class="mini-btn danger">현재 덱 삭제</button>
+          </div>
+        </section>
+
+        <!-- 가져오기/보내기 -->
+        <section class="stab-pane" data-spane="io">
+          <label>라이브러리 가져오기</label>
+          <p class="hint">관리자가 내보낸 라이브러리 파일(바로가기 + 공지)을 불러와 갱신합니다.</p>
+          <button id="s_libImportBtn" class="mini-btn">📥 라이브러리 파일 가져오기</button>
+
+          <label>즐겨찾기 덱</label>
+          <p class="hint">내 덱 구성을 파일로 저장하거나 불러옵니다.</p>
+          <div class="deck-manage">
+            <button id="s_deckExportBtn" class="mini-btn">📤 덱 내보내기</button>
+            <button id="s_deckImportBtn" class="mini-btn">📥 덱 가져오기</button>
+          </div>
+        </section>
+
+        <!-- 관리자 -->
+        <section class="stab-pane" data-spane="admin">
+          <p class="hint" style="margin-top:2px">🔒 관리자 비밀번호로 보호됩니다. 비밀번호는 배포 시 코드에 고정되어 있습니다.</p>
+          <label>라이브러리 관리 (관리자)</label>
+          <button id="s_libMgrBtn" class="mini-btn">🛠️ 라이브러리 관리 열기</button>
+          <p class="hint">바로가기 추가·수정, 공지 작성, 라이브러리 파일 내보내기.</p>
+        </section>
 
         <div class="modal-foot">
           <button id="resetBtn" class="danger">전체 초기화</button>
@@ -240,24 +257,24 @@
           <button id="lm_addBtn" class="primary full">＋ 라이브러리에 추가 / 수정</button>
         </div>
 
-        <div class="modal-foot">
-          <button id="lm_exportBtn" class="ghost">라이브러리 내보내기</button>
-          <button id="lm_importBtn" class="ghost">라이브러리 가져오기</button>
-          <button id="lm_resetBtn" class="danger">기본값 복원</button>
-          <span class="spacer"></span>
-          <button class="primary" data-close="libMgrModal">닫기</button>
-        </div>
-
         <details class="notice-compose">
-          <summary>📢 공지 보내기 (messages.json 내보내기)</summary>
+          <summary>📢 공지 작성 (라이브러리에 포함되어 함께 배포)</summary>
           <input id="nc_title" type="text" placeholder="공지 제목" />
           <textarea id="nc_body" rows="3" placeholder="공지 내용"></textarea>
           <div class="deck-manage">
-            <span class="hint" style="margin:0">기존 공지에 누적되어, GitHub 'QuickLaunch'에 올리면 전원에게 전달됩니다.</span>
+            <span class="hint" style="margin:0">추가한 공지는 아래 '라이브러리 내보내기' 파일에 함께 담겨 배포됩니다.</span>
             <span class="spacer"></span>
-            <button id="nc_exportBtn" class="mini-btn">messages.json 내보내기</button>
+            <button id="nc_addBtn" class="mini-btn">공지 추가</button>
           </div>
+          <div id="nc_list" class="nc-list"></div>
         </details>
+
+        <div class="modal-foot">
+          <button id="lm_exportBtn" class="primary">📤 라이브러리 내보내기 (바로가기 + 공지)</button>
+          <button id="lm_resetBtn" class="danger">기본값 복원</button>
+          <span class="spacer"></span>
+          <button class="primary ghost" data-close="libMgrModal">닫기</button>
+        </div>
       </div>
     </div>
 
