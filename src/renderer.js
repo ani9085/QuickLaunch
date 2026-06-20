@@ -620,6 +620,7 @@ function markLibraryEdited() {
 
 function openLibMgr() {
   ensureLibraryCopy();
+  buildLmPickers();
   clearLibForm();
   renderLibMgr();
   show("libMgrModal");
@@ -667,18 +668,76 @@ function loadLibForm(ci, ii) {
   $("#lm_category").value = state.library[ci].category;
   $("#lm_type").value = it.type || "url";
   $("#lm_target").value = it.target || "";
-  $("#lm_icon").value = it.icon || "";
-  $("#lm_color").value = it.color || "";
+  $("#lm_icon").value = it.icon || "📁";
+  $("#lm_color").value = it.color || "#2d3748";
+  updateLmPreview();
   $("#lm_addBtn").textContent = "✎ 수정 내용 저장";
 }
 
 function clearLibForm() {
   libMgrEditing = null;
-  ["lm_label", "lm_category", "lm_target", "lm_icon", "lm_color"].forEach(
-    (id) => ($("#" + id).value = "")
-  );
+  ["lm_label", "lm_category", "lm_target"].forEach((id) => ($("#" + id).value = ""));
   $("#lm_type").value = "url";
+  $("#lm_icon").value = "📁";
+  $("#lm_color").value = "#2d3748";
+  updateLmPreview();
   $("#lm_addBtn").textContent = "＋ 라이브러리에 추가 / 수정";
+}
+
+// 라이브러리 관리 — 아이콘/색상 시각 선택기
+let lmPickersBuilt = false;
+function buildLmPickers() {
+  if (lmPickersBuilt) return;
+  lmPickersBuilt = true;
+  const ig = $("#lm_iconGrid");
+  ig.innerHTML = "";
+  ALL_ICONS.forEach((ic) => {
+    const s = document.createElement("span");
+    s.textContent = ic;
+    s.onclick = () => {
+      $("#lm_icon").value = ic;
+      updateLmPreview();
+    };
+    ig.appendChild(s);
+  });
+  const cg = $("#lm_colorGrid");
+  cg.innerHTML = "";
+  COLOR_GROUPS.forEach((group) => {
+    const title = document.createElement("div");
+    title.className = "color-group-title";
+    title.textContent = group.name;
+    cg.appendChild(title);
+    const g = document.createElement("div");
+    g.className = "color-grid";
+    group.colors.forEach((c) => {
+      const s = document.createElement("span");
+      s.style.background = c;
+      s.dataset.color = c;
+      s.onclick = () => {
+        $("#lm_color").value = c;
+        updateLmPreview();
+      };
+      g.appendChild(s);
+    });
+    cg.appendChild(g);
+  });
+}
+
+function updateLmPreview() {
+  const icon = $("#lm_icon").value || "📁";
+  const color = $("#lm_color").value || "#2d3748";
+  const pv = $("#lm_preview");
+  if (pv) {
+    pv.textContent = icon;
+    pv.style.background = color;
+    pv.style.color = isLightColor(color) ? "#1a1d23" : "#fff";
+  }
+  $$("#lm_iconGrid span").forEach((s) =>
+    s.classList.toggle("sel", s.textContent === icon)
+  );
+  $$("#lm_colorGrid span").forEach((s) =>
+    s.classList.toggle("sel", s.dataset.color === color)
+  );
 }
 
 function libMgrAddOrUpdate() {

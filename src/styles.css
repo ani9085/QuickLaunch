@@ -54,12 +54,15 @@ body.lite .mode-pill::before { content: "🗗 "; }
 }
 .deck-tab.active { background: var(--accent); color: #fff; }
 
-.topbar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* 액션 버튼들은 두 번째 줄로 내려 우측 정렬 */
+.topbar-actions { display: flex; align-items: center; gap: 6px; flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; }
+/* 검색창은 첫 줄 오른쪽 끝(잘 안 쓰므로 작게) */
 .search {
+  margin-left: auto; flex: 0 0 auto;
   background: var(--bg-3); border: 1px solid var(--border); color: var(--text);
-  border-radius: 999px; padding: 5px 12px; width: 110px; outline: none; font-size: 12px;
+  border-radius: 999px; padding: 4px 11px; width: 96px; outline: none; font-size: 12px;
 }
-.search:focus { border-color: var(--accent); }
+.search:focus { border-color: var(--accent); width: 130px; }
 
 /* 그리드 크기 조절 (가로/세로 +/−) */
 .size-controls {
@@ -275,6 +278,16 @@ body.lite .mode-pill::before { content: "🗗 "; }
 .libmgr-row .lr-cat { font-size: 10px; background: var(--bg); padding: 2px 6px; border-radius: 6px; color: var(--text-dim); }
 .libmgr-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid var(--border); padding-top: 10px; }
 .libmgr-form .full { grid-column: 1 / -1; }
+
+/* 라이브러리 관리 — 아이콘/색상 시각 선택기 */
+.lm-appearance { display: flex; gap: 12px; align-items: flex-start; }
+.lm-prev-col { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.lm-pick-col { flex: 1; min-width: 0; }
+.lm-pick-title { display: block; font-size: 12px; color: var(--text-dim); margin: 4px 0 4px; }
+.lm-preview {
+  width: 64px; height: 64px; border-radius: 12px; background: #2d3748;
+  display: flex; align-items: center; justify-content: center; font-size: 30px; color: #fff;
+}
 
 /* 쪽지함 */
 .icon-btn { position: relative; }

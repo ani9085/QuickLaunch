@@ -18,8 +18,9 @@
 
       <nav class="deck-tabs" id="deckTabs"></nav>
 
+      <input id="searchInput" class="search" type="text" placeholder="🔍 검색…" />
+
       <div class="topbar-actions">
-        <input id="searchInput" class="search" type="text" placeholder="🔍 검색…" />
         <div class="size-controls" id="sizeControls">
           <span class="sc-label">가로</span>
           <button id="colMinus" class="sc-btn" title="가로 줄이기">−</button>
@@ -129,7 +130,7 @@
     <div id="libraryModal" class="modal hidden">
       <div class="modal-card wide">
         <div class="modal-head">
-          <h2>📚 바로가기 라이브러리 — 구매업무 추천</h2>
+          <h2>📚 바로가기 라이브러리</h2>
           <button class="close-x" data-close="libraryModal">✕</button>
         </div>
         <p class="hint">항목을 클릭하면 현재 덱에 추가됩니다.</p>
@@ -220,8 +221,22 @@
             <option value="hotkey">키보드 단축키</option>
           </select>
           <input id="lm_target" class="full" type="text" placeholder="대상 (URL / 경로 / 명령 / 키조합)" />
-          <input id="lm_icon" type="text" placeholder="아이콘 이모지 (예: 🏛️)" maxlength="4" />
-          <input id="lm_color" type="text" placeholder="배경색 (예: #1a365d)" />
+
+          <div class="full lm-appearance">
+            <div class="lm-prev-col">
+              <span class="lm-pick-title">미리보기</span>
+              <div id="lm_preview" class="lm-preview">📁</div>
+            </div>
+            <div class="lm-pick-col">
+              <span class="lm-pick-title">아이콘 클릭</span>
+              <div id="lm_iconGrid" class="icon-grid"></div>
+              <span class="lm-pick-title">배경색 클릭</span>
+              <div id="lm_colorGrid"></div>
+            </div>
+          </div>
+          <input id="lm_icon" type="hidden" />
+          <input id="lm_color" type="hidden" />
+
           <button id="lm_addBtn" class="primary full">＋ 라이브러리에 추가 / 수정</button>
         </div>
 

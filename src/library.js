@@ -1,4 +1,4 @@
-/* 배포자 제공 — 구매인력이 자주 쓰는 바로가기 라이브러리
+/* 배포자 제공 — 자주 쓰는 바로가기 라이브러리
  * 사용자는 여기서 골라 자신의 덱에 추가할 수 있음. (type/target/icon/color/label) */
 window.SHORTCUT_LIBRARY = [
   {
