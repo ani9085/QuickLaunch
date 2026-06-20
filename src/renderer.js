@@ -1,4 +1,17 @@
 /* ============================ QuickLaunch 렌더러 ============================ */
+// 빌드(코드) 기본 버전. 라이브러리 외 다른 부분을 수정해 새 exe를 배포할 때 올리세요.
+// 관리자 설정에서 덮어쓰면 state.settings.appVersion 이 우선합니다.
+const APP_VERSION = "1.0.0";
+
+function appVersion() {
+  return (state && state.settings && state.settings.appVersion) || APP_VERSION;
+}
+
+function renderVersion() {
+  const el = $("#brandVersion");
+  if (el) el.textContent = "v" + appVersion();
+}
+
 // 그리드 크기: 가로(cols)/세로(rows) 를 3~8 범위에서 자유 조절 (기본=최소 3×3)
 const GRID_MIN = 3;
 const GRID_MAX = 8;
@@ -81,6 +94,7 @@ async function init() {
   fitWindow();
   $("#hotkeyHint").textContent = "전역 단축키: " + state.settings.globalHotkey;
   renderInboxBadge(); // 공지 미읽음 배지
+  renderVersion();
 }
 
 function seedDefaultDeck() {
@@ -799,6 +813,7 @@ async function doImport() {
 /* ------------------------------- 설정/덱 관리 ------------------------------- */
 function openSettings() {
   $("#s_hotkey").value = state.settings.globalHotkey;
+  $("#s_version").value = appVersion();
   buildThemeGrid();
   updateModeLabel();
   switchSettingsTab("general");
@@ -1049,6 +1064,13 @@ function bindEvents() {
   $("#s_deckImportBtn").onclick = doImport;
 
   // 설정 — 관리자
+  $("#s_versionApply").onclick = () => {
+    const v = $("#s_version").value.trim();
+    state.settings.appVersion = v || undefined;
+    persist();
+    renderVersion();
+    toast("버전 표기: v" + appVersion());
+  };
   $("#s_libMgrBtn").onclick = () => {
     hide("settingsModal");
     requestAdminAccess();
