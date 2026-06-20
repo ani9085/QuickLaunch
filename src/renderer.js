@@ -108,7 +108,6 @@ function seedDefaultDeck() {
     L[0]?.items[4], // 계산기
     L[0]?.items[5], // 캡처 도구
     L[0]?.items[6], // 다운로드 폴더
-    L[1]?.items[3], // 저장 단축키
   ].filter(Boolean);
   picks.forEach((p, i) => {
     deck.items[i] = { ...p };

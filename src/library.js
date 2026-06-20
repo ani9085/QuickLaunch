@@ -13,14 +13,4 @@ window.SHORTCUT_LIBRARY = [
       { label: "다운로드 폴더", type: "folder", target: "%USERPROFILE%\\Downloads", icon: "📂", color: "#2d3748" },
     ],
   },
-  {
-    category: "단축키 예시",
-    items: [
-      { label: "복사", type: "hotkey", target: "Ctrl+C", icon: "📋", color: "#4a5568" },
-      { label: "붙여넣기", type: "hotkey", target: "Ctrl+V", icon: "📎", color: "#4a5568" },
-      { label: "전체선택", type: "hotkey", target: "Ctrl+A", icon: "☑️", color: "#4a5568" },
-      { label: "저장", type: "hotkey", target: "Ctrl+S", icon: "💾", color: "#2c5282" },
-      { label: "값만 붙여넣기", type: "hotkey", target: "Ctrl+Shift+V", icon: "📐", color: "#553c9a" },
-    ],
-  },
 ];
