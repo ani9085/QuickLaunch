@@ -30,7 +30,27 @@ npm install
 npm start
 ```
 
-## 📦 exe 빌드 (배포)
+## 🪶 Tauri 경량 빌드 (권장 — ~1.7MB 설치파일)
+
+Electron(~75MB) 대신 **Tauri**(Rust + OS WebView2)로 빌드하면 동일 기능에 용량이 대폭 줄어듭니다.
+
+| | Electron | **Tauri** |
+| --- | --- | --- |
+| 실행 파일 | ~75MB | **4.3MB** |
+| 설치 파일 | ~74MB | **1.7MB** |
+
+UI(`src/`)는 그대로 재사용하며, 네이티브 브리지는 `src-tauri/`(Rust) + `src/tauri-api.js`가 담당합니다.
+
+```bash
+# 사전 준비: Rust(rustup) + Visual Studio Build Tools(C++) + WebView2
+npm install
+npx tauri build          # → src-tauri/target/release/bundle/nsis/QuickLaunch_1.0.0_x64-setup.exe
+npx tauri dev            # 개발 실행
+```
+
+전역 단축키·트레이·파일 다이얼로그·원격 동기화·SendKeys 모두 Tauri에서 동작합니다. (자동 업데이트는 Tauri updater로 별도 구성 예정)
+
+## 📦 exe 빌드 (Electron 레거시)
 
 ```bash
 npm run dist
