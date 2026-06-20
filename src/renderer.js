@@ -437,8 +437,9 @@ function addToFirstEmpty(item) {
 }
 
 /* ----------------------------- 관리자 잠금 ----------------------------- */
-// 관리자 비밀번호는 코드에 고정. 변경하려면 이 값을 바꾸고 다시 빌드하세요.
-const ADMIN_PASSWORD = "A511138";
+// 관리자 비밀번호는 비공개 파일(src/admin-config.js, git 제외)에서 주입.
+// 그 파일이 없으면 아래 자리표시자가 쓰이며, 실제 비번은 공개 소스에 없음.
+const ADMIN_PASSWORD = window.ADMIN_PW || "CHANGE_ME_IN_admin-config.js";
 let adminUnlocked = false; // 세션 동안 유지
 
 let pwResolver = null;
