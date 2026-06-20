@@ -1,8 +1,8 @@
 # ⚡ QuickLaunch
 
-자주 쓰는 사이트·앱·파일·폴더·명령어·키보드 단축키를 타일 그리드에 등록해 한 번의 클릭으로 실행합니다. 배포자가 미리 만든 **구매업무 추천 라이브러리**를 기본 제공하며, 프로필을 파일로 내보내고 가져와 팀원과 공유할 수 있습니다.
+자주 쓰는 사이트·앱·파일·폴더·명령어·키보드 단축키를 타일 그리드에 등록해 한 번의 클릭으로 실행합니다. 관리자가 추천 라이브러리·공지를 로컬 파일로 내보내 배포하고, 사용자는 그 파일을 가져와 갱신합니다.
 
-> Windows 데스크톱 앱 (Electron). 로컬에서만 동작하며 외부로 데이터를 전송하지 않습니다.
+> Windows 데스크톱 앱 (권장: Tauri 빌드). **완전 오프라인** — 어떤 서버에도 접속하지 않습니다.
 
 ## ✨ 주요 기능
 
@@ -47,23 +47,7 @@ npx tauri build          # → src-tauri/target/release/bundle/nsis/QuickLaunch_
 npx tauri dev            # 개발 실행
 ```
 
-전역 단축키·트레이·파일 다이얼로그·SendKeys 모두 Tauri에서 동작하며, **외부 네트워크 통신은 일절 없습니다.**
-
-### 자동 업데이트 (Tauri updater)
-
-앱 시작 시 `https://github.com/ani9085/QuickLaunch/releases/latest/download/latest.json`을 확인해, 더 높은 버전이 있으면 서명 검증 후 다운로드하고 재시작 시 적용합니다. 공개키는 `tauri.conf.json`에 들어 있습니다.
-
-**새 버전 배포 절차(관리자):**
-```bash
-# 1) 버전 올리기: src-tauri/tauri.conf.json 의 "version" 을 예: 1.0.1 로 수정
-# 2) 서명 키로 빌드 (개인키는 ~/.tauri/ql_updater.key, git에 없음)
-export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/ql_updater.key)"
-export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
-npx tauri build
-# 3) GitHub에 새 릴리스(tag v1.0.1) 생성하고 아래 3개 업로드:
-#    QuickLaunch_1.0.1_x64-setup.exe, *.sig, latest.json(버전/서명/url 갱신)
-```
-> ⚠️ 개인키(`ql_updater.key`)를 잃어버리면 더 이상 서명된 업데이트를 낼 수 없습니다 — 안전하게 보관하세요.
+전역 단축키·트레이·파일 다이얼로그·SendKeys 모두 Tauri에서 동작하며, **외부 네트워크 통신은 일절 없습니다.** (자동 업데이트 없음 — 기능 변경 시 새 exe를 다시 배포)
 
 ## 📦 exe 빌드 (Electron 레거시)
 
