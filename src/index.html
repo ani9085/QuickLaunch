@@ -20,12 +20,18 @@
 
       <div class="topbar-actions">
         <input id="searchInput" class="search" type="text" placeholder="🔍 검색…" />
-        <div class="layout-switch" id="layoutSwitch">
-          <button data-layout="3x3">3×3</button>
-          <button data-layout="5x3">5×3</button>
-          <button data-layout="5x4">5×4</button>
+        <div class="size-controls" id="sizeControls">
+          <span class="sc-label">가로</span>
+          <button id="colMinus" class="sc-btn" title="가로 줄이기">−</button>
+          <span id="colVal" class="sc-val">3</span>
+          <button id="colPlus" class="sc-btn" title="가로 늘리기">+</button>
+          <span class="sc-sep"></span>
+          <span class="sc-label">세로</span>
+          <button id="rowMinus" class="sc-btn" title="세로 줄이기">−</button>
+          <span id="rowVal" class="sc-val">3</span>
+          <button id="rowPlus" class="sc-btn" title="세로 늘리기">+</button>
         </div>
-        <button id="msgBtn" class="icon-btn" title="쪽지함">📬</button>
+        <button id="msgBtn" class="icon-btn" title="공지사항">📢</button>
         <button id="editToggle" class="icon-btn" title="편집 모드">✏️</button>
         <button id="libraryBtn" class="icon-btn" title="라이브러리">📚</button>
         <button id="libMgrBtn" class="icon-btn" title="라이브러리 관리 (관리자)">🛠️</button>
@@ -228,11 +234,11 @@
         </div>
 
         <details class="notice-compose">
-          <summary>📢 전체 쪽지 보내기 (messages.json 내보내기)</summary>
-          <input id="nc_title" type="text" placeholder="쪽지 제목" />
-          <textarea id="nc_body" rows="3" placeholder="쪽지 내용"></textarea>
+          <summary>📢 공지 보내기 (messages.json 내보내기)</summary>
+          <input id="nc_title" type="text" placeholder="공지 제목" />
+          <textarea id="nc_body" rows="3" placeholder="공지 내용"></textarea>
           <div class="deck-manage">
-            <span class="hint" style="margin:0">기존 쪽지에 누적되어, GitHub 'QuickLaunch'에 올리면 전원에게 전달됩니다.</span>
+            <span class="hint" style="margin:0">기존 공지에 누적되어, GitHub 'QuickLaunch'에 올리면 전원에게 전달됩니다.</span>
             <span class="spacer"></span>
             <button id="nc_exportBtn" class="mini-btn">messages.json 내보내기</button>
           </div>
@@ -240,11 +246,11 @@
       </div>
     </div>
 
-    <!-- 쪽지함 모달 -->
+    <!-- 공지사항 모달 -->
     <div id="inboxModal" class="modal hidden">
       <div class="modal-card" style="width:min(460px,92vw)">
         <div class="modal-head">
-          <h2>📬 쪽지함</h2>
+          <h2>📢 공지사항</h2>
           <button class="close-x" data-close="inboxModal">✕</button>
         </div>
         <div id="inboxList" class="inbox-list"></div>

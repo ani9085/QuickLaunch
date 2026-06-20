@@ -1,9 +1,24 @@
 /* ============================ QuickLaunch 렌더러 ============================ */
-const LAYOUTS = {
-  "3x3": { cols: 3, rows: 3 },
-  "5x3": { cols: 5, rows: 3 },
-  "5x4": { cols: 5, rows: 4 },
-};
+// 그리드 크기: 가로(cols)/세로(rows) 를 3~8 범위에서 자유 조절 (기본=최소 3×3)
+const GRID_MIN = 3;
+const GRID_MAX = 8;
+
+function clampGrid(n) {
+  n = parseInt(n, 10) || GRID_MIN;
+  return Math.max(GRID_MIN, Math.min(GRID_MAX, n));
+}
+
+// 덱의 cols/rows 를 반환 (구버전 layout 문자열도 호환)
+function deckGrid(deck) {
+  deck = deck || activeDeck();
+  if (deck.cols == null || deck.rows == null) {
+    const m = /^(\d+)x(\d+)$/.exec(deck.layout || "");
+    deck.cols = m ? clampGrid(m[1]) : GRID_MIN;
+    deck.rows = m ? clampGrid(m[2]) : GRID_MIN;
+    delete deck.layout;
+  }
+  return { cols: clampGrid(deck.cols), rows: clampGrid(deck.rows) };
+}
 
 let state = null;
 let editMode = false;
@@ -31,7 +46,7 @@ function defaultState() {
   return {
     activeDeckId: "deck1",
     decks: [
-      { id: "deck1", name: "기본", layout: "5x3", items: {} },
+      { id: "deck1", name: "기본", cols: 3, rows: 3, items: {} },
     ],
     settings: {
       globalHotkey: "CommandOrControl+Shift+Space",
@@ -150,16 +165,15 @@ function renderDeckTabs() {
 }
 
 function renderLayoutSwitch() {
-  const layout = activeDeck().layout;
-  $$("#layoutSwitch button").forEach((b) => {
-    b.classList.toggle("active", b.dataset.layout === layout);
-  });
+  const { cols, rows } = deckGrid();
+  if ($("#colVal")) $("#colVal").textContent = cols;
+  if ($("#rowVal")) $("#rowVal").textContent = rows;
 }
 
 function renderGrid() {
   applySizeVars();
   const deck = activeDeck();
-  const { cols, rows } = LAYOUTS[deck.layout];
+  const { cols, rows } = deckGrid(deck);
   const total = cols * rows;
   const grid = $("#grid");
   grid.classList.toggle("editing", editMode);
@@ -422,7 +436,8 @@ function buildLibraryFull() {
 
 function addToFirstEmpty(item) {
   const deck = activeDeck();
-  const total = LAYOUTS[deck.layout].cols * LAYOUTS[deck.layout].rows;
+  const g = deckGrid(deck);
+  const total = g.cols * g.rows;
   for (let i = 0; i < total; i++) {
     if (!deck.items[i]) {
       deck.items[i] = item;
@@ -555,7 +570,7 @@ function openInbox(auto) {
   list.innerHTML = "";
   const msgs = state.messages || [];
   if (!msgs.length) {
-    list.innerHTML = '<p class="hint">받은 쪽지가 없습니다.</p>';
+    list.innerHTML = '<p class="hint">받은 공지가 없습니다.</p>';
   } else {
     msgs
       .slice()
@@ -728,7 +743,7 @@ async function libMgrImport() {
 async function noticeExport() {
   const title = $("#nc_title").value.trim();
   const body = $("#nc_body").value.trim();
-  if (!title) return toast("쪽지 제목을 입력하세요.");
+  if (!title) return toast("공지 제목을 입력하세요.");
   const msg = {
     id: Date.now(),
     title,
@@ -833,7 +848,7 @@ function applyTheme() {
 // 모드/레이아웃에 맞춰 타일 크기 CSS 변수 적용 후 창 크기 자동 조정
 function applySizeVars() {
   const s = state.settings.liteMode ? SIZES.lite : SIZES.normal;
-  const { cols } = LAYOUTS[activeDeck().layout];
+  const { cols } = deckGrid();
   const root = document.documentElement;
   root.style.setProperty("--cols", cols);
   root.style.setProperty("--tile", s.tile + "px");
@@ -858,7 +873,7 @@ function measureHeaderHeight(contentW) {
 function fitWindow() {
   applySizeVars();
   const s = state.settings.liteMode ? SIZES.lite : SIZES.normal;
-  const { cols, rows } = LAYOUTS[activeDeck().layout];
+  const { cols, rows } = deckGrid();
   const gridW = cols * s.tile + (cols - 1) * s.gap;
   const gridH = rows * s.tile + (rows - 1) * s.gap;
   const contentW = Math.max(gridW + s.pad * 2, 340);
@@ -872,11 +887,12 @@ function fitWindow() {
 function addDeck() {
   const name = $("#newDeckName").value.trim() || "새 덱";
   const id = "deck" + Date.now();
-  state.decks.push({ id, name, layout: "5x3", items: {} });
+  state.decks.push({ id, name, cols: 3, rows: 3, items: {} });
   state.activeDeckId = id;
   $("#newDeckName").value = "";
   persist();
   renderAll();
+  fitWindow();
 }
 
 function renameDeck() {
@@ -927,15 +943,20 @@ function togglePickPathBtn() {
 
 /* ------------------------------- 이벤트 바인딩 ------------------------------- */
 function bindEvents() {
-  // 레이아웃 전환 — 창 크기 자동 조정
-  $$("#layoutSwitch button").forEach((b) => {
-    b.onclick = () => {
-      activeDeck().layout = b.dataset.layout;
-      persist();
-      renderAll();
-      fitWindow();
-    };
-  });
+  // 그리드 크기 조절 (가로/세로 +/−) — 변경 시 창 자동 리사이즈(스크롤 없음)
+  function adjustGrid(axis, delta) {
+    const deck = activeDeck();
+    const g = deckGrid(deck);
+    if (axis === "cols") deck.cols = clampGrid(g.cols + delta);
+    else deck.rows = clampGrid(g.rows + delta);
+    persist();
+    renderAll();
+    fitWindow();
+  }
+  $("#colMinus").onclick = () => adjustGrid("cols", -1);
+  $("#colPlus").onclick = () => adjustGrid("cols", 1);
+  $("#rowMinus").onclick = () => adjustGrid("rows", -1);
+  $("#rowPlus").onclick = () => adjustGrid("rows", 1);
 
   // 창 크기 모드 토글 (기본 ↔ Lite) — 브랜드 옆 라벨
   $("#modeToggle").onclick = toggleLiteMode;

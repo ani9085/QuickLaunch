@@ -61,12 +61,20 @@ body.lite .mode-pill::before { content: "🗗 "; }
 }
 .search:focus { border-color: var(--accent); }
 
-.layout-switch { display: flex; background: var(--bg-3); border-radius: 8px; overflow: hidden; }
-.layout-switch button {
-  border: none; background: transparent; color: var(--text-dim);
-  padding: 5px 8px; cursor: pointer; font-size: 11px;
+/* 그리드 크기 조절 (가로/세로 +/−) */
+.size-controls {
+  display: flex; align-items: center; gap: 3px;
+  background: var(--bg-3); border-radius: 8px; padding: 2px 6px;
 }
-.layout-switch button.active { background: var(--accent); color: #fff; }
+.size-controls .sc-label { font-size: 11px; color: var(--text-dim); margin: 0 2px; }
+.size-controls .sc-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
+.size-controls .sc-val { font-size: 12px; font-weight: 600; min-width: 12px; text-align: center; }
+.size-controls .sc-btn {
+  border: none; background: transparent; color: var(--text); cursor: pointer;
+  width: 20px; height: 20px; border-radius: 6px; font-size: 14px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.size-controls .sc-btn:hover { background: var(--accent); color: #fff; }
 
 .icon-btn {
   border: 1px solid var(--border); background: var(--bg-3); color: var(--text);
