@@ -42,6 +42,7 @@ npm run dev        # 개발 실행
 ```
 
 전역 단축키·트레이·파일 다이얼로그·SendKeys 모두 Tauri에서 동작하며, **외부 네트워크 통신은 일절 없습니다.** (자동 업데이트 없음 — 기능 변경 시 새 exe를 다시 배포)
+URL 바로가기는 `http://`, `https://`, `ms-screenclip:`만 허용하며, 앱/파일/폴더 열기는 임의 셸 명령어를 거치지 않습니다.
 
 빌드와 배포 기준은 [BUILD_POLICY.md](BUILD_POLICY.md)에 정리되어 있습니다.
 
@@ -68,6 +69,8 @@ npm run dev        # 개발 실행
 ## 🔒 관리자 잠금
 
 🛠️ 라이브러리 관리는 관리자 비밀번호로 보호됩니다. 비밀번호는 Git에 올리지 않는 `src/admin-config.js`에서 `window.ADMIN_PW`로 주입합니다. [src/admin-config.example.js](src/admin-config.example.js)를 복사해 값을 채운 뒤 다시 빌드하세요.
+
+이 잠금은 라이브러리 오수정을 막는 UI 보호 장치입니다. 배포된 앱을 직접 분석할 수 있는 로컬 사용자까지 막는 강한 인증 경계로 보지는 않습니다.
 
 ## 🧩 라이브러리 커스터마이징 (배포자용)
 

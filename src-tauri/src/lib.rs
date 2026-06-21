@@ -10,6 +10,19 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+#[cfg(windows)]
+#[link(name = "shell32")]
+unsafe extern "system" {
+    fn ShellExecuteW(
+        hwnd: *mut std::ffi::c_void,
+        lp_operation: *const u16,
+        lp_file: *const u16,
+        lp_parameters: *const u16,
+        lp_directory: *const u16,
+        n_show_cmd: i32,
+    ) -> isize;
+}
+
 fn data_path(app: &tauri::AppHandle) -> Option<PathBuf> {
     let dir = app.path().app_config_dir().ok()?;
     let _ = fs::create_dir_all(&dir);
@@ -28,36 +41,107 @@ fn save_data(app: tauri::AppHandle, data: String) -> Result<(), String> {
     fs::write(p, data).map_err(|e| e.to_string())
 }
 
-// cmd /C 로 명령 실행 (콘솔 창 숨김)
-fn run_cmd(args: &[&str]) -> Result<(), String> {
-    let mut c = std::process::Command::new("cmd");
-    c.arg("/C");
-    for a in args {
-        c.arg(a);
+// Windows 환경변수(%USERPROFILE% 등)는 열기 전에 한 번 확장한다.
+fn expand_percent_vars(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut rest = input;
+
+    while let Some(start) = rest.find('%') {
+        out.push_str(&rest[..start]);
+        let after_start = &rest[start + 1..];
+
+        if let Some(end) = after_start.find('%') {
+            let key = &after_start[..end];
+            if key.is_empty() {
+                out.push_str("%%");
+            } else if let Ok(value) = std::env::var(key) {
+                out.push_str(&value);
+            } else {
+                out.push('%');
+                out.push_str(key);
+                out.push('%');
+            }
+            rest = &after_start[end + 1..];
+        } else {
+            out.push_str(&rest[start..]);
+            rest = "";
+            break;
+        }
     }
-    #[cfg(windows)]
+
+    out.push_str(rest);
+    out
+}
+
+fn normalize_target(target: String) -> Result<String, String> {
+    let trimmed = target.trim();
+    if trimmed.is_empty() {
+        return Err("target is empty".to_string());
+    }
+
+    Ok(expand_percent_vars(trimmed))
+}
+
+fn normalize_url(target: String) -> Result<String, String> {
+    let trimmed = target.trim();
+    if trimmed.is_empty() {
+        return Err("target is empty".to_string());
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") || lower == "ms-screenclip:"
     {
-        use std::os::windows::process::CommandExt;
-        c.creation_flags(CREATE_NO_WINDOW);
+        Ok(trimmed.to_string())
+    } else if lower.contains(':') {
+        Err("unsupported URL protocol".to_string())
+    } else {
+        Ok(format!("https://{}", trimmed))
     }
-    c.spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+#[cfg(windows)]
+fn open_target(target: &str) -> Result<(), String> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+
+    fn wide(value: &str) -> Vec<u16> {
+        OsStr::new(value).encode_wide().chain(Some(0)).collect()
+    }
+
+    let operation = wide("open");
+    let file = wide(target);
+    let result = unsafe {
+        ShellExecuteW(
+            std::ptr::null_mut(),
+            operation.as_ptr(),
+            file.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            1,
+        )
+    };
+
+    if result <= 32 {
+        Err(format!("open failed: {}", result))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(not(windows))]
+fn open_target(target: &str) -> Result<(), String> {
+    std::process::Command::new("xdg-open")
+        .arg(target)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn run_action(kind: String, target: String) -> Result<(), String> {
     match kind.as_str() {
-        "app" | "file" | "folder" => run_cmd(&["start", "", &target]),
-        "url" => {
-            let url = if target.starts_with("http://")
-                || target.starts_with("https://")
-                || target.contains(':')
-            {
-                target
-            } else {
-                format!("https://{}", target)
-            };
-            run_cmd(&["start", "", &url])
-        }
+        "app" | "file" | "folder" => open_target(&normalize_target(target)?),
+        "url" => open_target(&normalize_url(target)?),
         other => Err(format!("알 수 없는 타입: {}", other)),
     }
 }

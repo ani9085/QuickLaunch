@@ -38,12 +38,9 @@ let editMode = false;
 let editingSlot = null; // 편집 중인 슬롯 인덱스
 let draft = null; // 편집 모달 임시 데이터
 const SAFE_ITEM_TYPES = new Set(["url", "app", "file", "folder", "hotkey"]);
-const LEGACY_COMMAND_TARGETS = new Map([
-  ["start excel", { type: "app", target: "excel.exe" }],
-  ["start powerpnt", { type: "app", target: "powerpnt.exe" }],
-  ["start outlook", { type: "app", target: "outlook.exe" }],
-  ["start ms-screenclip:", { type: "url", target: "ms-screenclip:" }],
-]);
+const DEFAULT_ICON = "📁";
+const DEFAULT_COLOR = "#2d3748";
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 let editTypeTargetLocked = false;
 
 const $ = (sel) => document.querySelector(sel);
@@ -90,15 +87,32 @@ function isLibraryCatalogItem(item) {
   );
 }
 
+function safeString(value, max = 500) {
+  return String(value ?? "").trim().slice(0, max);
+}
+
+function sanitizeIcon(icon) {
+  return safeString(icon || DEFAULT_ICON, 32) || DEFAULT_ICON;
+}
+
+function sanitizeColor(color, fallback = DEFAULT_COLOR) {
+  const value = safeString(color, 16);
+  return HEX_COLOR_RE.test(value) ? value : fallback;
+}
+
 function sanitizeItem(item, opts = {}) {
   if (!item || typeof item !== "object") return null;
-  if (item.type === "command") {
-    const migrated = LEGACY_COMMAND_TARGETS.get(String(item.target || "").toLowerCase());
-    if (!migrated) return null;
-    item = { ...item, ...migrated, libraryLocked: true };
-  }
-  if (!SAFE_ITEM_TYPES.has(item.type)) return null;
-  const safe = { ...item };
+  const type = safeString(item.type, 20);
+  if (!SAFE_ITEM_TYPES.has(type)) return null;
+  const safe = {
+    ...item,
+    type,
+    label: safeString(item.label, 120),
+    target: safeString(item.target, 2048),
+    icon: sanitizeIcon(item.icon),
+    color: sanitizeColor(item.color),
+    textOnly: !!item.textOnly,
+  };
   if (safe.libraryLocked || (opts.inferLibraryLocked && isLibraryCatalogItem(safe))) {
     safe.libraryLocked = true;
   }
@@ -235,13 +249,14 @@ function renderGrid() {
       !(item.target || "").toLowerCase().includes(query);
 
     if (item) {
+      const tileColor = sanitizeColor(item.color);
       tile.className = "tile";
-      tile.style.background = item.color || "#2d3748";
+      tile.style.background = tileColor;
       // 밝은(파스텔) 배경엔 어두운 글자색
-      tile.style.color = isLightColor(item.color) ? "#1a1d23" : "#fff";
+      tile.style.color = isLightColor(tileColor) ? "#1a1d23" : "#fff";
       tile.style.opacity = dim ? "0.25" : "1";
       tile.innerHTML = `
-        ${item.textOnly ? "" : `<span class="tile-icon">${item.icon || "📁"}</span>`}
+        ${item.textOnly ? "" : `<span class="tile-icon">${escapeHtml(sanitizeIcon(item.icon))}</span>`}
         <span class="tile-label">${escapeHtml(item.label || "")}</span>
         <span class="badge">${typeBadge(item.type)}</span>
         ${editMode ? '<span class="edit-pencil">✏️</span>' : ""}
@@ -330,15 +345,16 @@ function collectDraftFromActiveTab() {
 
 function saveEdit() {
   collectDraftFromActiveTab();
-  if (!draft.label) return toast("이름을 입력하세요.");
-  if (!SAFE_ITEM_TYPES.has(draft.type)) return toast("지원하지 않는 유형입니다.");
-  if (draft.type !== "hotkey" && !draft.target) return toast("대상을 입력하세요.");
-  if (draft.type === "hotkey" && !draft.target) return toast("키 조합을 입력하세요.");
-  activeDeck().items[editingSlot] = { ...draft };
+  const safeDraft = sanitizeItem(draft);
+  if (!safeDraft) return toast("지원하지 않는 유형입니다.");
+  if (!safeDraft.label) return toast("이름을 입력하세요.");
+  if (safeDraft.type !== "hotkey" && !safeDraft.target) return toast("대상을 입력하세요.");
+  if (safeDraft.type === "hotkey" && !safeDraft.target) return toast("키 조합을 입력하세요.");
+  activeDeck().items[editingSlot] = { ...safeDraft };
   persist();
   hide("editModal");
   renderGrid();
-  setStatus("저장됨: " + draft.label);
+  setStatus("저장됨: " + safeDraft.label);
 }
 
 function deleteItem() {
@@ -349,8 +365,8 @@ function deleteItem() {
 }
 
 function updatePreview() {
-  $("#previewIcon").textContent = draft.textOnly ? "Aa" : draft.icon || "📁";
-  $("#previewTile").style.background = draft.color || COLOR_PALETTE[0];
+  $("#previewIcon").textContent = draft.textOnly ? "Aa" : sanitizeIcon(draft.icon);
+  $("#previewTile").style.background = sanitizeColor(draft.color, COLOR_PALETTE[0]);
 }
 
 /* --------------------------- 아이콘 / 색상 그리드 --------------------------- */
@@ -468,7 +484,7 @@ function buildLibPicker() {
 function makeLibItem(it, onClick) {
   const el = document.createElement("div");
   el.className = "lib-item";
-  el.innerHTML = `<span class="li-icon">${it.icon}</span>
+  el.innerHTML = `<span class="li-icon">${escapeHtml(sanitizeIcon(it.icon))}</span>
     <span class="li-text">${escapeHtml(it.label)}<small>${escapeHtml(it.target)}</small></span>`;
   el.onclick = onClick;
   return el;
@@ -632,7 +648,7 @@ function renderLibMgr() {
       const row = document.createElement("div");
       row.className = "libmgr-row";
       row.innerHTML = `
-        <span class="lr-icon">${it.icon || "📁"}</span>
+        <span class="lr-icon">${escapeHtml(sanitizeIcon(it.icon))}</span>
         <span class="lr-main">${escapeHtml(it.label)}<small>${typeBadge(it.type)} ${escapeHtml(it.target)}</small></span>
         <span class="lr-cat">${escapeHtml(cat.category)}</span>
         <button class="mini-btn" data-edit>수정</button>
@@ -664,8 +680,8 @@ function loadLibForm(ci, ii) {
   $("#lm_category").value = state.library[ci].category;
   $("#lm_type").value = it.type || "url";
   $("#lm_target").value = it.target || "";
-  $("#lm_icon").value = it.icon || "📁";
-  $("#lm_color").value = it.color || "#2d3748";
+  $("#lm_icon").value = sanitizeIcon(it.icon);
+  $("#lm_color").value = sanitizeColor(it.color);
   updateLmPreview();
   $("#lm_addBtn").textContent = "✎ 수정 내용 저장";
 }
@@ -720,8 +736,8 @@ function buildLmPickers() {
 }
 
 function updateLmPreview() {
-  const icon = $("#lm_icon").value || "📁";
-  const color = $("#lm_color").value || "#2d3748";
+  const icon = sanitizeIcon($("#lm_icon").value);
+  const color = sanitizeColor($("#lm_color").value);
   const pv = $("#lm_preview");
   if (pv) {
     pv.textContent = icon;
@@ -743,12 +759,13 @@ function libMgrAddOrUpdate() {
   const category = $("#lm_category").value.trim() || "기타";
   const type = $("#lm_type").value;
   const target = $("#lm_target").value.trim();
-  const icon = $("#lm_icon").value.trim() || "📁";
-  const color = $("#lm_color").value.trim() || "#2d3748";
+  const icon = sanitizeIcon($("#lm_icon").value);
+  const color = sanitizeColor($("#lm_color").value);
   if (!label) return toast("이름을 입력하세요.");
   if (!target) return toast("대상을 입력하세요.");
   if (!SAFE_ITEM_TYPES.has(type)) return toast("지원하지 않는 유형입니다.");
-  const item = { label, type, target, icon, color };
+  const item = sanitizeItem({ label, type, target, icon, color });
+  if (!item) return toast("지원하지 않는 유형입니다.");
   if (libMgrEditing) {
     const { ci, ii } = libMgrEditing;
     state.library[ci].items.splice(ii, 1);
