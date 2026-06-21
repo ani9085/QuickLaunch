@@ -99,6 +99,49 @@ fn normalize_url(target: String) -> Result<String, String> {
     }
 }
 
+fn is_apps_folder_target(target: &str) -> bool {
+    target.to_ascii_lowercase().starts_with("shell:appsfolder\\")
+}
+
+fn validate_apps_folder_target(target: &str) -> Result<(), String> {
+    let app_id = target
+        .split_once('\\')
+        .map(|(_, app_id)| app_id)
+        .unwrap_or("");
+
+    if app_id.is_empty() {
+        return Err("Windows app ID is empty".to_string());
+    }
+
+    if app_id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '!'))
+    {
+        Ok(())
+    } else {
+        Err("unsupported Windows app ID".to_string())
+    }
+}
+
+#[cfg(windows)]
+fn open_apps_folder_target(target: &str) -> Result<(), String> {
+    validate_apps_folder_target(target)?;
+
+    let mut c = std::process::Command::new("explorer.exe");
+    c.arg(target);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        c.creation_flags(CREATE_NO_WINDOW);
+    }
+    c.spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+#[cfg(not(windows))]
+fn open_apps_folder_target(_target: &str) -> Result<(), String> {
+    Err("Windows app IDs are only supported on Windows".to_string())
+}
+
 #[cfg(windows)]
 fn open_target(target: &str) -> Result<(), String> {
     use std::ffi::OsStr;
@@ -140,7 +183,14 @@ fn open_target(target: &str) -> Result<(), String> {
 #[tauri::command]
 fn run_action(kind: String, target: String) -> Result<(), String> {
     match kind.as_str() {
-        "app" | "file" | "folder" => open_target(&normalize_target(target)?),
+        "app" | "file" | "folder" => {
+            let target = normalize_target(target)?;
+            if is_apps_folder_target(&target) {
+                open_apps_folder_target(&target)
+            } else {
+                open_target(&target)
+            }
+        }
         "url" => open_target(&normalize_url(target)?),
         other => Err(format!("알 수 없는 타입: {}", other)),
     }

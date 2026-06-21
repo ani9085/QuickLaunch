@@ -13,4 +13,13 @@ window.SHORTCUT_LIBRARY = [
       { label: "다운로드 폴더", type: "folder", target: "%USERPROFILE%\\Downloads", icon: "📂", color: "#2d3748" },
     ],
   },
+  {
+    category: "AI 도구",
+    items: [
+      { label: "Claude", type: "app", target: "shell:AppsFolder\\Claude_pzs8sxrjxfjjc!Claude", icon: "🧠", color: "#6b46c1" },
+      { label: "Codex", type: "app", target: "shell:AppsFolder\\OpenAI.Codex_2p2nqsd0c76g0!App", icon: "⚙️", color: "#2b6cb0" },
+      { label: "ChatGPT", type: "app", target: "chatgpt.exe", icon: "💬", color: "#2f855a" },
+      { label: "Antigravity", type: "app", target: "%LOCALAPPDATA%\\Programs\\antigravity\\Antigravity.exe", icon: "🚀", color: "#553c9a" },
+    ],
+  },
 ];

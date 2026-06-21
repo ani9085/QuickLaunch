@@ -43,8 +43,18 @@ npm run dev        # 개발 실행
 
 전역 단축키·트레이·파일 다이얼로그·SendKeys 모두 Tauri에서 동작하며, **외부 네트워크 통신은 일절 없습니다.** (자동 업데이트 없음 — 기능 변경 시 새 exe를 다시 배포)
 URL 바로가기는 `http://`, `https://`, `ms-screenclip:`만 허용하며, 앱/파일/폴더 열기는 임의 셸 명령어를 거치지 않습니다.
+Windows Store/AppX 앱은 `shell:AppsFolder\패키지!앱ID` 형식으로 실행할 수 있습니다.
 
 빌드와 배포 기준은 [BUILD_POLICY.md](BUILD_POLICY.md)에 정리되어 있습니다.
+
+## 🧭 Windows 앱 대상 예시
+
+| 앱 | 유형 | 대상 |
+| --- | --- | --- |
+| Claude | 앱 / 실행파일 | `shell:AppsFolder\Claude_pzs8sxrjxfjjc!Claude` |
+| Codex | 앱 / 실행파일 | `shell:AppsFolder\OpenAI.Codex_2p2nqsd0c76g0!App` |
+| ChatGPT | 앱 / 실행파일 | `chatgpt.exe` |
+| Antigravity | 앱 / 실행파일 | `%LOCALAPPDATA%\Programs\antigravity\Antigravity.exe` |
 
 ## 🔐 보안 모델
 
