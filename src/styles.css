@@ -184,10 +184,11 @@ body.lite .mode-pill::before { content: "🗗 "; }
 .hint { font-size: 12px; color: var(--text-dim); margin: 6px 0 0; line-height: 1.5; }
 .credit { text-align: center; font-size: 12px; color: var(--text-dim); margin: 14px 0 2px; }
 
-.tabs { display: flex; gap: 6px; margin: 10px 0; }
+.tabs { display: flex; gap: 5px; margin: 10px 0; }
 .tab {
-  flex: 1; padding: 9px; border-radius: 9px; cursor: pointer;
-  background: var(--bg-3); border: 1px solid var(--border); color: var(--text-dim); font-size: 13px;
+  flex: 1; padding: 8px 4px; border-radius: 9px; cursor: pointer;
+  background: var(--bg-3); border: 1px solid var(--border); color: var(--text-dim);
+  font-size: 12px; white-space: nowrap; text-align: center;
 }
 .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .tab-pane { display: none; }

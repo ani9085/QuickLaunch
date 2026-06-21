@@ -53,7 +53,7 @@ function defaultState() {
   return {
     activeDeckId: "deck1",
     decks: [
-      { id: "deck1", name: "기본", cols: 3, rows: 3, items: {} },
+      { id: "deck1", name: "기본", cols: 4, rows: 3, items: {} },
     ],
     settings: {
       globalHotkey: "CommandOrControl+Shift+Space",
@@ -541,6 +541,7 @@ function openLibMgr() {
   clearLibForm();
   renderLibMgr();
   renderNcList();
+  $("#s_version").value = appVersion();
   show("libMgrModal");
 }
 
@@ -781,30 +782,51 @@ function libMgrReset() {
   toast("기본값으로 복원됨");
 }
 
-/* ------------------------------- 가져오기/내보내기 ------------------------------- */
+/* ----------------------------- 덱 내보내기/가져오기 ----------------------------- */
+// 현재 덱 1개만 내보내기 (확인 후)
 async function doExport() {
-  const json = JSON.stringify(state, null, 2);
+  const deck = activeDeck();
+  const g = deckGrid(deck);
+  const count = Object.keys(deck.items || {}).length;
+  if (!confirm(`현재 덱 "${deck.name}" (${g.cols}×${g.rows}, 바로가기 ${count}개)을(를) 파일로 내보내시겠습니까?`))
+    return;
+  const json = JSON.stringify(
+    { __quicklaunchDeck: true, version: 1, deck: { name: deck.name, cols: g.cols, rows: g.rows, items: deck.items } },
+    null,
+    2
+  );
   const res = await window.api.exportSave(json);
-  if (res.ok) toast("내보내기 완료: " + res.path);
+  if (res.ok) toast("덱 내보냄: " + res.path);
   else if (!res.canceled) toast("내보내기 실패: " + res.error);
 }
 
+// 덱 파일 가져오기 → 새 덱으로 추가 (구버전 프로필도 호환)
 async function doImport() {
   const res = await window.api.importOpen();
   if (res.canceled) return;
   if (!res.ok) return toast("가져오기 실패: " + res.error);
   try {
     const data = JSON.parse(res.data);
-    if (!data.decks) throw new Error("올바른 프로필 파일이 아닙니다.");
-    // 병합: 가져온 덱을 새 id로 추가
-    data.decks.forEach((d) => {
-      const newId = "deck" + Date.now() + Math.floor(Math.random() * 1000);
-      state.decks.push({ ...d, id: newId, name: d.name + " (가져옴)" });
-    });
+    let added = 0;
+    const addDeckObj = (d) => {
+      const id = "deck" + Date.now() + Math.floor(Math.random() * 1000);
+      state.decks.push({
+        id,
+        name: (d.name || "덱") + " (가져옴)",
+        cols: clampGrid(d.cols || 4),
+        rows: clampGrid(d.rows || 3),
+        items: d.items || {},
+      });
+      state.activeDeckId = id;
+      added++;
+    };
+    if (data.deck) addDeckObj(data.deck);
+    else if (Array.isArray(data.decks)) data.decks.forEach(addDeckObj);
+    else throw new Error("덱 파일이 아닙니다.");
     persist();
     renderAll();
     fitWindow();
-    toast("가져오기 완료: " + data.decks.length + "개 덱 추가");
+    toast("덱 가져옴 (" + added + "개)");
   } catch (e) {
     toast("가져오기 실패: " + e.message);
   }
@@ -813,7 +835,6 @@ async function doImport() {
 /* ------------------------------- 설정/덱 관리 ------------------------------- */
 function openSettings() {
   $("#s_hotkey").value = state.settings.globalHotkey;
-  $("#s_version").value = appVersion();
   buildThemeGrid();
   updateModeLabel();
   switchSettingsTab("general");
@@ -905,7 +926,7 @@ function fitWindow() {
 function addDeck() {
   const name = $("#newDeckName").value.trim() || "새 덱";
   const id = "deck" + Date.now();
-  state.decks.push({ id, name, cols: 3, rows: 3, items: {} });
+  state.decks.push({ id, name, cols: 4, rows: 3, items: {} });
   state.activeDeckId = id;
   $("#newDeckName").value = "";
   persist();
@@ -1053,9 +1074,15 @@ function bindEvents() {
   $("#deleteDeckBtn").onclick = deleteDeck;
   $("#resetBtn").onclick = resetAll;
 
-  // 설정 — 탭 전환
+  // 설정 — 탭 전환 (관리자 탭은 비밀번호 필요)
   $$("#settingsTabs .tab").forEach((t) => {
-    t.onclick = () => switchSettingsTab(t.dataset.stab);
+    t.onclick = () => {
+      if (t.dataset.stab === "admin" && !adminUnlocked) {
+        requestAdminAccess(); // 비밀번호 → 라이브러리 관리 열림
+        return;
+      }
+      switchSettingsTab(t.dataset.stab);
+    };
   });
 
   // 설정 — 가져오기/보내기

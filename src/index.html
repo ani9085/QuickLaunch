@@ -21,8 +21,8 @@
 
       <input id="searchInput" class="search" type="text" placeholder="🔍 검색…" />
 
-      <!-- 2번째 줄: 크기 조절 -->
-      <div class="size-row">
+      <!-- 2번째 줄: 크기 조절 + 아이콘 (한 줄, 좌측 정렬) -->
+      <div class="topbar-actions">
         <div class="size-controls" id="sizeControls">
           <span class="sc-label">가로</span>
           <button id="colMinus" class="sc-btn" title="가로 줄이기">−</button>
@@ -34,10 +34,6 @@
           <span id="rowVal" class="sc-val">3</span>
           <button id="rowPlus" class="sc-btn" title="세로 늘리기">+</button>
         </div>
-      </div>
-
-      <!-- 3번째 줄: 아이콘 (좌측 정렬) -->
-      <div class="topbar-actions">
         <button id="msgBtn" class="icon-btn" title="공지사항">📢</button>
         <button id="editToggle" class="icon-btn" title="편집 모드">✏️</button>
         <button id="libraryBtn" class="icon-btn" title="라이브러리">📚</button>
@@ -197,20 +193,12 @@
           </div>
         </section>
 
-        <!-- 관리자 -->
+        <!-- 관리자 (비밀번호 필요) -->
         <section class="stab-pane" data-spane="admin">
-          <p class="hint" style="margin-top:2px">🔒 관리자 비밀번호로 보호됩니다. 비밀번호는 배포 시 코드에 고정되어 있습니다.</p>
-
-          <label>버전 표기 (QuickLaunch 옆에 표시)</label>
-          <div class="deck-manage">
-            <input id="s_version" type="text" placeholder="예: 1.0.1" style="max-width:140px" />
-            <button id="s_versionApply" class="mini-btn">적용</button>
-          </div>
-          <p class="hint">라이브러리 외 다른 부분을 수정해 새 exe를 배포할 때 버전을 올려 표기하세요.</p>
-
+          <p class="hint" style="margin-top:2px">🔒 관리자 전용 — 비밀번호로 보호됩니다.</p>
           <label>라이브러리 관리 (관리자)</label>
-          <button id="s_libMgrBtn" class="mini-btn">🛠️ 라이브러리 관리 열기</button>
-          <p class="hint">바로가기 추가·수정, 공지 작성, 라이브러리 파일 내보내기.</p>
+          <button id="s_libMgrBtn" class="mini-btn">🛠️ 라이브러리 관리 열기 (비밀번호)</button>
+          <p class="hint">바로가기 추가·수정, 공지 작성, 버전 표기, 라이브러리 파일 내보내기.</p>
         </section>
 
         <div class="modal-foot">
@@ -231,6 +219,12 @@
           <button class="close-x" data-close="libMgrModal">✕</button>
         </div>
         <p class="hint">배포할 추천 바로가기를 추가·수정·삭제하고, 파일로 내보내 팀에 배포할 수 있습니다.</p>
+
+        <div class="deck-manage" style="margin-bottom:10px">
+          <span class="lm-pick-title" style="margin:0">버전 표기 (QuickLaunch 옆):</span>
+          <input id="s_version" type="text" placeholder="예: 1.0.1" style="max-width:120px" />
+          <button id="s_versionApply" class="mini-btn">적용</button>
+        </div>
 
         <div id="libMgrList" class="libmgr-list"></div>
 
