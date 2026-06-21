@@ -38,6 +38,13 @@ let editMode = false;
 let editingSlot = null; // 편집 중인 슬롯 인덱스
 let draft = null; // 편집 모달 임시 데이터
 const SAFE_ITEM_TYPES = new Set(["url", "app", "file", "folder", "hotkey"]);
+const LEGACY_COMMAND_TARGETS = new Map([
+  ["start excel", { type: "app", target: "excel.exe" }],
+  ["start powerpnt", { type: "app", target: "powerpnt.exe" }],
+  ["start outlook", { type: "app", target: "outlook.exe" }],
+  ["start ms-screenclip:", { type: "url", target: "ms-screenclip:" }],
+]);
+let editTypeTargetLocked = false;
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -75,16 +82,33 @@ function getLibrary() {
   return SHORTCUT_LIBRARY;
 }
 
-function sanitizeItem(item) {
+function isLibraryCatalogItem(item) {
+  return getLibrary().some((cat) =>
+    (cat.items || []).some(
+      (it) => it.label === item.label && it.type === item.type && it.target === item.target
+    )
+  );
+}
+
+function sanitizeItem(item, opts = {}) {
   if (!item || typeof item !== "object") return null;
+  if (item.type === "command") {
+    const migrated = LEGACY_COMMAND_TARGETS.get(String(item.target || "").toLowerCase());
+    if (!migrated) return null;
+    item = { ...item, ...migrated, libraryLocked: true };
+  }
   if (!SAFE_ITEM_TYPES.has(item.type)) return null;
-  return { ...item };
+  const safe = { ...item };
+  if (safe.libraryLocked || (opts.inferLibraryLocked && isLibraryCatalogItem(safe))) {
+    safe.libraryLocked = true;
+  }
+  return safe;
 }
 
 function sanitizeItemsMap(items) {
   const cleaned = {};
   Object.entries(items || {}).forEach(([slot, item]) => {
-    const safe = sanitizeItem(item);
+    const safe = sanitizeItem(item, { inferLibraryLocked: true });
     if (safe) cleaned[slot] = safe;
   });
   return cleaned;
@@ -101,10 +125,10 @@ function sanitizeLibrary(lib) {
 }
 
 function sanitizeState() {
+  if (Array.isArray(state.library)) state.library = sanitizeLibrary(state.library);
   (state.decks || []).forEach((deck) => {
     deck.items = sanitizeItemsMap(deck.items);
   });
-  if (Array.isArray(state.library)) state.library = sanitizeLibrary(state.library);
 }
 
 async function init() {
@@ -144,7 +168,7 @@ function seedDefaultDeck() {
     L[0]?.items[6], // 다운로드 폴더
   ].filter(Boolean);
   picks.forEach((p, i) => {
-    deck.items[i] = { ...p };
+    deck.items[i] = makeLibraryDeckItem(p);
   });
 }
 
@@ -262,6 +286,7 @@ async function runItem(item) {
 function openEdit(slot) {
   editingSlot = slot;
   const existing = activeDeck().items[slot];
+  editTypeTargetLocked = !!(existing && existing.libraryLocked);
   draft = existing
     ? { ...existing }
     : { label: "", type: "url", target: "", icon: "📁", color: COLOR_PALETTE[0], textOnly: false };
@@ -277,6 +302,7 @@ function openEdit(slot) {
   $("#f_hk_combo").value = draft.type === "hotkey" ? draft.target : "";
   updatePreview();
   syncIconColorSelection();
+  applyEditLock();
   togglePickPathBtn();
 
   // 탭: 기존이 hotkey면 hotkey탭, 아니면 custom(편집) / 신규는 library
@@ -288,12 +314,16 @@ function collectDraftFromActiveTab() {
   const tab = $(".tab.active").dataset.tab;
   if (tab === "custom") {
     draft.label = $("#f_label").value.trim();
-    draft.type = $("#f_type").value;
-    draft.target = $("#f_target").value.trim();
+    if (!editTypeTargetLocked) {
+      draft.type = $("#f_type").value;
+      draft.target = $("#f_target").value.trim();
+    }
   } else if (tab === "hotkey") {
     draft.label = $("#f_hk_label").value.trim();
-    draft.type = "hotkey";
-    draft.target = $("#f_hk_combo").value.trim();
+    if (!editTypeTargetLocked) {
+      draft.type = "hotkey";
+      draft.target = $("#f_hk_combo").value.trim();
+    }
   }
   // library 탭은 클릭 시 즉시 draft에 반영됨
 }
@@ -301,6 +331,7 @@ function collectDraftFromActiveTab() {
 function saveEdit() {
   collectDraftFromActiveTab();
   if (!draft.label) return toast("이름을 입력하세요.");
+  if (!SAFE_ITEM_TYPES.has(draft.type)) return toast("지원하지 않는 유형입니다.");
   if (draft.type !== "hotkey" && !draft.target) return toast("대상을 입력하세요.");
   if (draft.type === "hotkey" && !draft.target) return toast("키 조합을 입력하세요.");
   activeDeck().items[editingSlot] = { ...draft };
@@ -398,6 +429,11 @@ function syncIconColorSelection() {
 }
 
 /* ------------------------------- 라이브러리 ------------------------------- */
+function makeLibraryDeckItem(item) {
+  const safe = sanitizeItem(item);
+  return safe ? { ...safe, textOnly: false, libraryLocked: true } : null;
+}
+
 function buildLibPicker() {
   const wrap = $("#libPicker");
   wrap.innerHTML = "";
@@ -410,12 +446,18 @@ function buildLibPicker() {
     items.className = "lib-items";
     cat.items.forEach((it) => {
       items.appendChild(makeLibItem(it, () => {
-        draft = { ...it, textOnly: false };
+        draft = makeLibraryDeckItem(it);
+        if (!draft) return toast("지원하지 않는 유형입니다.");
+        editTypeTargetLocked = true;
         updatePreview();
         syncIconColorSelection();
         $("#f_label").value = it.label;
         $("#f_type").value = it.type === "hotkey" ? "url" : it.type;
         $("#f_target").value = it.target;
+        $("#f_hk_label").value = it.label;
+        $("#f_hk_combo").value = it.type === "hotkey" ? it.target : "";
+        applyEditLock();
+        switchTab(draft.type === "hotkey" ? "hotkey" : "custom");
         toast("선택됨: " + it.label + " — 저장을 누르세요");
       }));
     });
@@ -445,7 +487,8 @@ function buildLibraryFull() {
     cat.items.forEach((it) => {
       items.appendChild(
         makeLibItem(it, () => {
-          addToFirstEmpty({ ...it, textOnly: false });
+          const item = makeLibraryDeckItem(it);
+          if (item) addToFirstEmpty(item);
         })
       );
     });
@@ -1008,13 +1051,28 @@ function switchTab(name) {
   );
 }
 
+function applyEditLock() {
+  const locked = editTypeTargetLocked;
+  const type = draft ? draft.type : "";
+  $("#libraryLockHint").classList.toggle("hidden", !locked);
+  $("#f_type").disabled = locked;
+  $("#f_target").readOnly = locked;
+  $("#f_hk_combo").dataset.locked = locked ? "1" : "";
+  $$("#editTabs .tab").forEach((tab) => {
+    const name = tab.dataset.tab;
+    tab.disabled =
+      locked &&
+      ((type === "hotkey" && name !== "hotkey") || (type !== "hotkey" && name !== "custom"));
+  });
+}
+
 function show(id) { $("#" + id).classList.remove("hidden"); }
 function hide(id) { $("#" + id).classList.add("hidden"); }
 
 function togglePickPathBtn() {
   const type = $("#f_type").value;
   const show = type === "app" || type === "file" || type === "folder";
-  $("#pickPathBtn").classList.toggle("hidden", !show);
+  $("#pickPathBtn").classList.toggle("hidden", editTypeTargetLocked || !show);
 }
 
 /* ------------------------------- 이벤트 바인딩 ------------------------------- */
@@ -1092,6 +1150,7 @@ function bindEvents() {
   const hk = $("#f_hk_combo");
   hk.onkeydown = (e) => {
     e.preventDefault();
+    if (hk.dataset.locked === "1") return;
     const parts = [];
     if (e.ctrlKey) parts.push("Ctrl");
     if (e.altKey) parts.push("Alt");
