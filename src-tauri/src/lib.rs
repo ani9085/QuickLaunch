@@ -167,7 +167,7 @@ fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
-// Electron accelerator → Tauri Shortcut 문자열
+// 단축키 표기 문자열을 Tauri Shortcut 형식으로 정규화
 fn normalize_accel(accel: &str) -> String {
     accel
         .replace("CommandOrControl", "Control")

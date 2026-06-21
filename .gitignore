@@ -1,6 +1,4 @@
 node_modules/
-release/
-dist/
 src/admin-config.js
 src-tauri/target/
 src-tauri/gen/

@@ -2,7 +2,7 @@
 
 자주 쓰는 사이트·앱·파일·폴더·명령어·키보드 단축키를 타일 그리드에 등록해 한 번의 클릭으로 실행합니다. 관리자가 추천 라이브러리·공지를 로컬 파일로 내보내 배포하고, 사용자는 그 파일을 가져와 갱신합니다.
 
-> Windows 데스크톱 앱 (권장: Tauri 빌드). **완전 오프라인** — 어떤 서버에도 접속하지 않습니다.
+> Windows 데스크톱 앱. **Tauri 전용 빌드**로 배포하며, 어떤 서버에도 접속하지 않는 완전 오프라인 앱입니다.
 
 ## ✨ 주요 기능
 
@@ -11,7 +11,7 @@
 | **가변 그리드** | 가로·세로를 `3~8` 범위에서 +/− 로 조절 — 변경 시 **창 크기 자동 조정(스크롤 없음)** |
 | **기본 / Lite 모드** | 기본 100×100px, Lite 50×50px. 브랜드 옆 **"기본/Lite" 알약 버튼**으로 전환 |
 | **완전 오프라인** | 외부 통신 없음 — 라이브러리·공지는 **로컬 파일 내보내기/가져오기**로 배포 |
-| **관리자 잠금** | 🛠️ 라이브러리 관리에 비밀번호 잠금 (코드 고정) |
+| **관리자 잠금** | 🛠️ 라이브러리 관리에 비밀번호 잠금 (`src/admin-config.js`에서 주입) |
 | **바로가기 유형** | 웹사이트(URL) · **앱/프로그램(.exe) 실행** · 파일 · 폴더 · 명령어 · **키보드 단축키 전송** |
 | **3가지 추가 방식** | ① 라이브러리에서 선택 ② 직접 입력 ③ 키보드 단축키 캡처 |
 | **라이브러리 관리(관리자)** | 앱 내에서 바로가기 추가·수정·삭제 + 공지 작성, 라이브러리+공지 파일 내보내기 |
@@ -26,36 +26,23 @@
 
 ```bash
 npm install
-npm start
+npm run dev
 ```
 
-## 🪶 Tauri 경량 빌드 (권장 — ~1.7MB 설치파일)
+## 🪶 Tauri 빌드
 
-Electron(~75MB) 대신 **Tauri**(Rust + OS WebView2)로 빌드하면 동일 기능에 용량이 대폭 줄어듭니다.
-
-| | Electron | **Tauri** |
-| --- | --- | --- |
-| 실행 파일 | ~75MB | **4.3MB** |
-| 설치 파일 | ~74MB | **1.7MB** |
-
-UI(`src/`)는 그대로 재사용하며, 네이티브 브리지는 `src-tauri/`(Rust) + `src/tauri-api.js`가 담당합니다.
+QuickLaunch는 Tauri(Rust + OS WebView2)만 공식 빌드로 사용합니다. UI(`src/`)는 정적 파일로 유지하고, 네이티브 브리지는 `src-tauri/`(Rust) + `src/tauri-api.js`가 담당합니다.
 
 ```bash
 # 사전 준비: Rust(rustup) + Visual Studio Build Tools(C++) + WebView2
 npm install
-npx tauri build          # → src-tauri/target/release/bundle/nsis/QuickLaunch_1.0.0_x64-setup.exe
-npx tauri dev            # 개발 실행
+npm run build      # → src-tauri/target/release/bundle/nsis/QuickLaunch_1.0.0_x64-setup.exe
+npm run dev        # 개발 실행
 ```
 
 전역 단축키·트레이·파일 다이얼로그·SendKeys 모두 Tauri에서 동작하며, **외부 네트워크 통신은 일절 없습니다.** (자동 업데이트 없음 — 기능 변경 시 새 exe를 다시 배포)
 
-## 📦 exe 빌드 (Electron 레거시)
-
-```bash
-npm run dist
-```
-
-`release/` 폴더에 설치형(NSIS) 및 무설치 포터블 `.exe`가 생성됩니다.
+빌드와 배포 기준은 [BUILD_POLICY.md](BUILD_POLICY.md)에 정리되어 있습니다.
 
 ## ⌨️ 키보드 단축키 전송 방식
 
@@ -79,7 +66,7 @@ npm run dist
 
 ## 🔒 관리자 잠금
 
-🛠️ 라이브러리 관리는 관리자 비밀번호로 보호됩니다. 비밀번호는 [src/renderer.js](src/renderer.js)의 `ADMIN_PASSWORD` 상수에 고정되어 있으며, 변경하려면 값을 바꾸고 다시 빌드하세요.
+🛠️ 라이브러리 관리는 관리자 비밀번호로 보호됩니다. 비밀번호는 Git에 올리지 않는 `src/admin-config.js`에서 `window.ADMIN_PW`로 주입합니다. [src/admin-config.example.js](src/admin-config.example.js)를 복사해 값을 채운 뒤 다시 빌드하세요.
 
 ## 🧩 라이브러리 커스터마이징 (배포자용)
 

@@ -1,4 +1,4 @@
-// Tauri 환경에서만 window.api 를 정의 (Electron 빌드에는 영향 없음)
+// Tauri 환경에서 window.api 를 정의한다.
 (function () {
   if (!window.__TAURI_INTERNALS__ || !window.__TAURI__) return;
   const { invoke } = window.__TAURI__.core;
