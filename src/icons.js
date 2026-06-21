@@ -178,3 +178,12 @@ window.THEMES = [
   { key: "sky",      name: "스카이",   vars: { "--bg": "#e7f3fb", "--bg-2": "#f5fafe", "--bg-3": "#dcecf7", "--border": "#c2dbef", "--text": "#16344a", "--text-dim": "#5a7388", "--accent": "#0ea5e9", "--accent-2": "#0284c7" } },
   { key: "peach",    name: "피치",     vars: { "--bg": "#fcefe8", "--bg-2": "#fff7f3", "--bg-3": "#f7e3d8", "--border": "#ecccba", "--text": "#3a2920", "--text-dim": "#7a6357", "--accent": "#f97316", "--accent-2": "#ea6307" } },
 ];
+
+/* 로봇 마스코트 이미지 아이콘 (assets/robots/ 에 번들된 PNG) */
+window.ROBOT_ICONS = [
+  "assets/robots/robot-pink.png",
+  "assets/robots/robot-yellow.png",
+  "assets/robots/robot-blue.png",
+  "assets/robots/robot-dark.png",
+  "assets/robots/robot-white.png",
+];

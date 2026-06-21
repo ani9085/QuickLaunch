@@ -41,6 +41,7 @@ const SAFE_ITEM_TYPES = new Set(["url", "app", "file", "folder", "hotkey"]);
 const DEFAULT_ICON = "📁";
 const DEFAULT_COLOR = "#2d3748";
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const ROBOT_ICON_RE = /^assets\/robots\/[\w-]+\.png$/;
 let editTypeTargetLocked = false;
 
 const $ = (sel) => document.querySelector(sel);
@@ -92,7 +93,20 @@ function safeString(value, max = 500) {
 }
 
 function sanitizeIcon(icon) {
-  return safeString(icon || DEFAULT_ICON, 32) || DEFAULT_ICON;
+  const s = String(icon ?? "").trim();
+  if (ROBOT_ICON_RE.test(s)) return s;
+  return s.slice(0, 32) || DEFAULT_ICON;
+}
+
+function isImageIcon(icon) {
+  return ROBOT_ICON_RE.test(String(icon ?? "").trim());
+}
+
+function renderIconHtml(icon, cls = "tile-icon") {
+  if (isImageIcon(icon)) {
+    return `<img class="${cls}-img" src="${icon}" alt="" draggable="false" />`;
+  }
+  return `<span class="${cls}">${escapeHtml(sanitizeIcon(icon))}</span>`;
 }
 
 function sanitizeColor(color, fallback = DEFAULT_COLOR) {
@@ -256,7 +270,7 @@ function renderGrid() {
       tile.style.color = isLightColor(tileColor) ? "#1a1d23" : "#fff";
       tile.style.opacity = dim ? "0.25" : "1";
       tile.innerHTML = `
-        ${item.textOnly ? "" : `<span class="tile-icon">${escapeHtml(sanitizeIcon(item.icon))}</span>`}
+        ${item.textOnly ? "" : renderIconHtml(item.icon)}
         <span class="tile-label">${escapeHtml(item.label || "")}</span>
         <span class="badge">${typeBadge(item.type)}</span>
         ${editMode ? '<span class="edit-pencil">✏️</span>' : ""}
@@ -365,7 +379,15 @@ function deleteItem() {
 }
 
 function updatePreview() {
-  $("#previewIcon").textContent = draft.textOnly ? "Aa" : sanitizeIcon(draft.icon);
+  const iconEl = $("#previewIcon");
+  const icon = draft.textOnly ? null : draft.icon;
+  if (draft.textOnly) {
+    iconEl.textContent = "Aa";
+  } else if (isImageIcon(icon)) {
+    iconEl.innerHTML = `<img src="${icon}" style="width:100%;height:100%;object-fit:cover;border-radius:4px" alt="" />`;
+  } else {
+    iconEl.textContent = sanitizeIcon(icon);
+  }
   $("#previewTile").style.background = sanitizeColor(draft.color, COLOR_PALETTE[0]);
 }
 
@@ -373,6 +395,29 @@ function updatePreview() {
 function buildIconGrid() {
   const grid = $("#iconGrid");
   grid.innerHTML = "";
+  // 로봇 마스코트 섹션
+  const robotTitle = document.createElement("div");
+  robotTitle.className = "icon-cat-title";
+  robotTitle.textContent = "로봇 마스코트";
+  grid.appendChild(robotTitle);
+  const robotRow = document.createElement("div");
+  robotRow.className = "icon-row-robots";
+  (window.ROBOT_ICONS || []).forEach((src) => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.dataset.icon = src;
+    img.className = "icon-robot-thumb";
+    img.draggable = false;
+    img.onclick = () => {
+      draft.icon = src;
+      draft.textOnly = false;
+      updatePreview();
+      syncIconColorSelection();
+    };
+    robotRow.appendChild(img);
+  });
+  grid.appendChild(robotRow);
+  // 이모지 아이콘
   ALL_ICONS.forEach((ic) => {
     const s = document.createElement("span");
     s.textContent = ic;
@@ -436,6 +481,9 @@ function buildThemeGrid() {
 }
 
 function syncIconColorSelection() {
+  $$("#iconGrid img.icon-robot-thumb").forEach((img) =>
+    img.classList.toggle("sel", img.dataset.icon === draft.icon && !draft.textOnly)
+  );
   $$("#iconGrid span").forEach((s) =>
     s.classList.toggle("sel", s.textContent === draft.icon && !draft.textOnly)
   );
@@ -484,7 +532,10 @@ function buildLibPicker() {
 function makeLibItem(it, onClick) {
   const el = document.createElement("div");
   el.className = "lib-item";
-  el.innerHTML = `<span class="li-icon">${escapeHtml(sanitizeIcon(it.icon))}</span>
+  const iconHtml = isImageIcon(it.icon)
+    ? `<img class="li-icon-img" src="${it.icon}" alt="" />`
+    : `<span class="li-icon">${escapeHtml(sanitizeIcon(it.icon))}</span>`;
+  el.innerHTML = `${iconHtml}
     <span class="li-text">${escapeHtml(it.label)}<small>${escapeHtml(it.target)}</small></span>`;
   el.onclick = onClick;
   return el;
@@ -648,7 +699,7 @@ function renderLibMgr() {
       const row = document.createElement("div");
       row.className = "libmgr-row";
       row.innerHTML = `
-        <span class="lr-icon">${escapeHtml(sanitizeIcon(it.icon))}</span>
+        ${renderIconHtml(it.icon, "lr-icon")}
         <span class="lr-main">${escapeHtml(it.label)}<small>${typeBadge(it.type)} ${escapeHtml(it.target)}</small></span>
         <span class="lr-cat">${escapeHtml(cat.category)}</span>
         <button class="mini-btn" data-edit>수정</button>
@@ -703,6 +754,26 @@ function buildLmPickers() {
   lmPickersBuilt = true;
   const ig = $("#lm_iconGrid");
   ig.innerHTML = "";
+  // 로봇 마스코트 섹션
+  const robotTitle = document.createElement("div");
+  robotTitle.className = "icon-cat-title";
+  robotTitle.textContent = "로봇 마스코트";
+  ig.appendChild(robotTitle);
+  const robotRow = document.createElement("div");
+  robotRow.className = "icon-row-robots";
+  (window.ROBOT_ICONS || []).forEach((src) => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.dataset.icon = src;
+    img.className = "icon-robot-thumb";
+    img.draggable = false;
+    img.onclick = () => {
+      $("#lm_icon").value = src;
+      updateLmPreview();
+    };
+    robotRow.appendChild(img);
+  });
+  ig.appendChild(robotRow);
   ALL_ICONS.forEach((ic) => {
     const s = document.createElement("span");
     s.textContent = ic;
@@ -736,16 +807,24 @@ function buildLmPickers() {
 }
 
 function updateLmPreview() {
-  const icon = sanitizeIcon($("#lm_icon").value);
+  const iconVal = sanitizeIcon($("#lm_icon").value);
   const color = sanitizeColor($("#lm_color").value);
   const pv = $("#lm_preview");
   if (pv) {
-    pv.textContent = icon;
-    pv.style.background = color;
+    if (isImageIcon(iconVal)) {
+      pv.innerHTML = `<img src="${iconVal}" style="width:100%;height:100%;object-fit:cover;border-radius:4px" alt="" />`;
+      pv.style.background = "transparent";
+    } else {
+      pv.textContent = iconVal;
+      pv.style.background = color;
+    }
     pv.style.color = isLightColor(color) ? "#1a1d23" : "#fff";
   }
+  $$("#lm_iconGrid img.icon-robot-thumb").forEach((img) =>
+    img.classList.toggle("sel", img.dataset.icon === iconVal)
+  );
   $$("#lm_iconGrid span").forEach((s) =>
-    s.classList.toggle("sel", s.textContent === icon)
+    s.classList.toggle("sel", s.textContent === iconVal)
   );
   $$("#lm_colorGrid span").forEach((s) =>
     s.classList.toggle("sel", s.dataset.color === color)
