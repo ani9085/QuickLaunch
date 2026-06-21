@@ -37,6 +37,7 @@ let state = null;
 let editMode = false;
 let editingSlot = null; // 편집 중인 슬롯 인덱스
 let draft = null; // 편집 모달 임시 데이터
+const SAFE_ITEM_TYPES = new Set(["url", "app", "file", "folder", "hotkey"]);
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -74,9 +75,42 @@ function getLibrary() {
   return SHORTCUT_LIBRARY;
 }
 
+function sanitizeItem(item) {
+  if (!item || typeof item !== "object") return null;
+  if (!SAFE_ITEM_TYPES.has(item.type)) return null;
+  return { ...item };
+}
+
+function sanitizeItemsMap(items) {
+  const cleaned = {};
+  Object.entries(items || {}).forEach(([slot, item]) => {
+    const safe = sanitizeItem(item);
+    if (safe) cleaned[slot] = safe;
+  });
+  return cleaned;
+}
+
+function sanitizeLibrary(lib) {
+  if (!Array.isArray(lib)) return [];
+  return lib
+    .map((cat) => ({
+      ...cat,
+      items: (Array.isArray(cat.items) ? cat.items : []).map(sanitizeItem).filter(Boolean),
+    }))
+    .filter((cat) => cat.items.length);
+}
+
+function sanitizeState() {
+  (state.decks || []).forEach((deck) => {
+    deck.items = sanitizeItemsMap(deck.items);
+  });
+  if (Array.isArray(state.library)) state.library = sanitizeLibrary(state.library);
+}
+
 async function init() {
   const loaded = await window.api.loadData();
   state = loaded && loaded.decks ? loaded : defaultState();
+  sanitizeState();
   // 누락 필드 보정 (구버전 데이터 호환)
   if (!state.settings) state.settings = defaultState().settings;
   if (state.settings.liteMode === undefined) state.settings.liteMode = false;
@@ -206,7 +240,7 @@ function renderGrid() {
 
 function typeBadge(type) {
   return (
-    { url: "🌐", app: "🖥️", file: "📄", folder: "📂", command: "⌘", hotkey: "⌨️" }[
+    { url: "🌐", app: "🖥️", file: "📄", folder: "📂", hotkey: "⌨️" }[
       type
     ] || ""
   );
@@ -670,6 +704,7 @@ function libMgrAddOrUpdate() {
   const color = $("#lm_color").value.trim() || "#2d3748";
   if (!label) return toast("이름을 입력하세요.");
   if (!target) return toast("대상을 입력하세요.");
+  if (!SAFE_ITEM_TYPES.has(type)) return toast("지원하지 않는 유형입니다.");
   const item = { label, type, target, icon, color };
   if (libMgrEditing) {
     const { ci, ii } = libMgrEditing;
@@ -760,12 +795,14 @@ async function importLibrary() {
     const data = JSON.parse(res.data);
     const lib = data.library || (Array.isArray(data) ? data : null);
     if (!lib || !Array.isArray(lib)) throw new Error("라이브러리 파일이 아닙니다.");
-    state.library = lib;
+    const cleanedLib = sanitizeLibrary(lib);
+    if (!cleanedLib.length) throw new Error("가져올 수 있는 바로가기가 없습니다.");
+    state.library = cleanedLib;
     if (Array.isArray(data.messages)) state.messages = data.messages;
     markLibraryEdited();
     persist();
     renderInboxBadge();
-    toast("라이브러리 갱신됨 (" + lib.length + "개 카테고리)");
+    toast("라이브러리 갱신됨 (" + cleanedLib.length + "개 카테고리)");
   } catch (e) {
     toast("가져오기 실패: " + e.message);
   }
@@ -815,7 +852,7 @@ async function doImport() {
         name: (d.name || "덱") + " (가져옴)",
         cols: clampGrid(d.cols || 4),
         rows: clampGrid(d.rows || 3),
-        items: d.items || {},
+        items: sanitizeItemsMap(d.items),
       });
       state.activeDeckId = id;
       added++;

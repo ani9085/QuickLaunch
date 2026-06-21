@@ -4,12 +4,12 @@ window.SHORTCUT_LIBRARY = [
   {
     category: "업무 도구",
     items: [
-      { label: "Excel", type: "command", target: "start excel", icon: "📊", color: "#22543d" },
-      { label: "PowerPoint", type: "command", target: "start powerpnt", icon: "📽️", color: "#c05621" },
-      { label: "Outlook", type: "command", target: "start outlook", icon: "📨", color: "#2b6cb0" },
+      { label: "Excel", type: "app", target: "excel.exe", icon: "📊", color: "#22543d" },
+      { label: "PowerPoint", type: "app", target: "powerpnt.exe", icon: "📽️", color: "#c05621" },
+      { label: "Outlook", type: "app", target: "outlook.exe", icon: "📨", color: "#2b6cb0" },
       { label: "메모장", type: "app", target: "notepad.exe", icon: "📝", color: "#4a5568" },
       { label: "계산기", type: "app", target: "calc.exe", icon: "🧮", color: "#744210" },
-      { label: "캡처 도구", type: "command", target: "start ms-screenclip:", icon: "📷", color: "#553c9a" },
+      { label: "캡처 도구", type: "url", target: "ms-screenclip:", icon: "📷", color: "#553c9a" },
       { label: "다운로드 폴더", type: "folder", target: "%USERPROFILE%\\Downloads", icon: "📂", color: "#2d3748" },
     ],
   },

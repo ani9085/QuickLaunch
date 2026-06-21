@@ -58,7 +58,6 @@ fn run_action(kind: String, target: String) -> Result<(), String> {
             };
             run_cmd(&["start", "", &url])
         }
-        "command" => run_cmd(&[&target]),
         other => Err(format!("알 수 없는 타입: {}", other)),
     }
 }
