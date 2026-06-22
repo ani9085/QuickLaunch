@@ -36,6 +36,14 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Create admin config from secret
+        shell: pwsh
+        env:
+          ADMIN_PW: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          $pw = if ($env:ADMIN_PW) { $env:ADMIN_PW } else { "CHANGE_ME_IN_admin-config.js" }
+          "window.ADMIN_PW = `"$pw`";" | Out-File -FilePath src/admin-config.js -Encoding utf8NoBOM
+
       - name: Build Tauri app
         run: npm run build
 
