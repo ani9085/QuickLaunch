@@ -54,6 +54,11 @@ body.lite .mode-pill::before { content: "🗗 "; }
   border: 1px solid transparent; white-space: nowrap; font-size: 13px;
 }
 .deck-tab.active { background: var(--accent); color: #fff; }
+.deck-tab.drop-target {
+  border-color: #8fb7ff;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(76, 141, 255, .28);
+}
 
 /* 액션 버튼들은 두 번째 줄로 내려 우측 정렬 */
 /* 2번째 줄: 크기 조절 (좌측) / 3번째 줄: 아이콘 (좌측) */
@@ -118,6 +123,15 @@ body.lite .mode-pill::before { content: "🗗 "; }
 }
 .tile:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,.35); }
 .tile:active { transform: scale(.96); }
+.tile.draggable { cursor: grab; }
+.tile.dragging {
+  opacity: .45;
+  transform: scale(.96);
+}
+.tile.drop-target {
+  border-color: #8fb7ff;
+  box-shadow: 0 0 0 3px rgba(76, 141, 255, .35), 0 8px 18px rgba(0,0,0,.35);
+}
 .tile .tile-icon { font-size: var(--icon-size); line-height: 1; }
 .tile .tile-label {
   font-size: var(--label-size); font-weight: 600; text-align: center; padding: 0 5px;

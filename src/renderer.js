@@ -37,6 +37,8 @@ let state = null;
 let editMode = false;
 let editingSlot = null; // 편집 중인 슬롯 인덱스
 let draft = null; // 편집 모달 임시 데이터
+let dragState = null;
+let suppressTileClick = false;
 const SAFE_ITEM_TYPES = new Set(["url", "app", "file", "folder", "hotkey"]);
 const DEFAULT_ICON = "📁";
 const DEFAULT_COLOR = "#2d3748";
@@ -231,6 +233,20 @@ function renderDeckTabs() {
       renderAll();
       fitWindow();
     };
+    if (editMode) {
+      b.ondragover = (e) => {
+        if (!dragState || dragState.deckId === d.id) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        b.classList.add("drop-target");
+      };
+      b.ondragleave = () => b.classList.remove("drop-target");
+      b.ondrop = (e) => {
+        e.preventDefault();
+        b.classList.remove("drop-target");
+        moveDraggedToDeck(d.id);
+      };
+    }
     wrap.appendChild(b);
   });
 }
@@ -255,6 +271,7 @@ function renderGrid() {
   for (let i = 0; i < total; i++) {
     const item = deck.items[i];
     const tile = document.createElement("div");
+    tile.dataset.slot = i;
 
     const dim =
       query &&
@@ -276,19 +293,133 @@ function renderGrid() {
         ${editMode ? '<span class="edit-pencil">✏️</span>' : ""}
       `;
       tile.title = item.target || "";
-      tile.onclick = () => (editMode ? openEdit(i) : runItem(item));
+      tile.onclick = (e) => {
+        if (suppressTileClick) {
+          e.preventDefault();
+          return;
+        }
+        editMode ? openEdit(i) : runItem(item);
+      };
     } else {
       tile.className = "tile empty";
       tile.innerHTML = `<span class="tile-icon">＋</span>`;
-      tile.onclick = () => editMode && openEdit(i);
+      tile.onclick = (e) => {
+        if (suppressTileClick) {
+          e.preventDefault();
+          return;
+        }
+        editMode && openEdit(i);
+      };
       if (!editMode) tile.style.cursor = "default";
     }
+    bindTileDrag(tile, deck.id, i, !!item);
     grid.appendChild(tile);
   }
   $("#emptyHint").classList.toggle(
     "hidden",
     Object.keys(deck.items).length > 0 || editMode
   );
+}
+
+function deckSlotCount(deck) {
+  const { cols, rows } = deckGrid(deck);
+  return cols * rows;
+}
+
+function firstEmptySlot(deck) {
+  const total = deckSlotCount(deck);
+  for (let i = 0; i < total; i++) {
+    if (!deck.items[i]) return i;
+  }
+  return -1;
+}
+
+function clearDropTargets() {
+  $$(".drop-target").forEach((el) => el.classList.remove("drop-target"));
+}
+
+function bindTileDrag(tile, deckId, slot, hasItem) {
+  if (!editMode) return;
+
+  tile.ondragover = (e) => {
+    if (!dragState || dragState.deckId !== deckId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    tile.classList.add("drop-target");
+  };
+  tile.ondragleave = () => tile.classList.remove("drop-target");
+  tile.ondrop = (e) => {
+    e.preventDefault();
+    tile.classList.remove("drop-target");
+    moveDraggedToSlot(slot);
+  };
+
+  if (!hasItem) return;
+
+  tile.draggable = true;
+  tile.classList.add("draggable");
+  tile.ondragstart = (e) => {
+    dragState = { deckId, slot };
+    suppressTileClick = true;
+    tile.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", `${deckId}:${slot}`);
+  };
+  tile.ondragend = () => {
+    tile.classList.remove("dragging");
+    clearDropTargets();
+    dragState = null;
+    setTimeout(() => {
+      suppressTileClick = false;
+    }, 0);
+  };
+}
+
+function moveDraggedToSlot(targetSlot) {
+  if (!dragState) return;
+  const deck = state.decks.find((d) => d.id === dragState.deckId);
+  if (!deck || deck.id !== state.activeDeckId) return;
+
+  const sourceSlot = dragState.slot;
+  if (sourceSlot === targetSlot) return;
+
+  const sourceItem = deck.items[sourceSlot];
+  if (!sourceItem) return;
+
+  const targetItem = deck.items[targetSlot];
+  deck.items[targetSlot] = sourceItem;
+  if (targetItem) deck.items[sourceSlot] = targetItem;
+  else delete deck.items[sourceSlot];
+
+  persist();
+  renderGrid();
+  setStatus(targetItem ? "위치 교환됨" : "위치 이동됨");
+}
+
+function moveDraggedToDeck(targetDeckId) {
+  if (!dragState || dragState.deckId === targetDeckId) return;
+
+  const sourceDeck = state.decks.find((d) => d.id === dragState.deckId);
+  const targetDeck = state.decks.find((d) => d.id === targetDeckId);
+  if (!sourceDeck || !targetDeck) return;
+
+  const item = sourceDeck.items[dragState.slot];
+  if (!item) return;
+
+  const targetSlot = firstEmptySlot(targetDeck);
+  if (targetSlot < 0) {
+    toast("대상 덱에 빈 칸이 없습니다.");
+    return;
+  }
+
+  targetDeck.items[targetSlot] = item;
+  delete sourceDeck.items[dragState.slot];
+  state.activeDeckId = targetDeck.id;
+
+  persist();
+  renderAll();
+  fitWindow();
+  setStatus(`"${item.label}" 이동됨: ${targetDeck.name}`);
 }
 
 function typeBadge(type) {
@@ -1199,8 +1330,9 @@ function bindEvents() {
   $("#editToggle").onclick = () => {
     editMode = !editMode;
     $("#editToggle").classList.toggle("on", editMode);
-    setStatus(editMode ? "편집 모드 — 칸을 눌러 편집/추가" : "준비됨");
+    setStatus(editMode ? "편집 모드 — 드래그로 위치 변경 / 덱 탭에 놓아 이동" : "준비됨");
     renderGrid();
+    renderDeckTabs();
   };
 
   // 검색
