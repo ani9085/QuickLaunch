@@ -89,6 +89,12 @@ body.lite .mode-pill::before { content: "🗗 "; }
 }
 .icon-btn:hover { border-color: var(--accent); }
 .icon-btn.on { background: var(--accent); border-color: var(--accent); }
+.quit-btn { color: #ffb4b8; }
+.quit-btn:hover {
+  background: rgba(229, 72, 77, .16);
+  border-color: var(--danger);
+  color: #fff;
+}
 
 /* ---------- 그리드 무대 ---------- */
 .stage {

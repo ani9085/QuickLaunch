@@ -1209,6 +1209,7 @@ function bindEvents() {
   // 상단 버튼
   $("#libraryBtn").onclick = () => { buildLibraryFull(); show("libraryModal"); };
   $("#settingsBtn").onclick = openSettings;
+  $("#quitBtn").onclick = () => window.api.quitApp();
 
   // 모달 닫기 (x, data-close)
   $$("[data-close]").forEach((b) => (b.onclick = () => hide(b.dataset.close)));
