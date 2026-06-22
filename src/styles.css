@@ -160,6 +160,16 @@ body.lite .mode-pill::before { content: "🗗 "; }
 .editing .tile { animation: wiggle .4s ease-in-out infinite alternate; }
 @keyframes wiggle { from { transform: rotate(-.6deg); } to { transform: rotate(.6deg); } }
 
+/* WebView2(Tauri)에서 드래그 인식 보정:
+   - draggable 타일은 wiggle 중지 (transform 애니메이션이 dragstart 감지를 방해)
+   - :active 스케일 없앰 (클릭 순간의 transform이 드래그 threshold 감지를 혼란시킴)
+   - 타일 자식 요소 pointer-events 제거 (tile div가 직접 drag 이벤트를 받도록)
+   - 편집 모드에서 transform 트랜지션 제거 (부드러운 스케일이 dragstart를 지연시킬 수 있음) */
+.editing .tile.draggable { animation: none; }
+.grid.editing .tile { transition: box-shadow .12s ease; }
+.grid.editing .tile:active { transform: none; }
+.editing .tile > * { pointer-events: none; }
+
 .empty-hint {
   position: absolute; bottom: 20px; left: 0; right: 0; text-align: center;
   color: var(--text-dim); font-size: 13px;
