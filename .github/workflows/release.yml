@@ -39,11 +39,15 @@ jobs:
       - name: Build Tauri app
         run: npm run build
 
+      - name: Rename portable exe
+        run: Copy-Item src-tauri/target/release/app.exe QuickLaunch.exe
+        shell: pwsh
+
       - name: Upload portable exe to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            src-tauri/target/release/QuickLaunch.exe
+            QuickLaunch.exe
             src-tauri/target/release/bundle/nsis/*.exe
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: QuickLaunch ${{ github.event.inputs.tag || github.ref_name }}
