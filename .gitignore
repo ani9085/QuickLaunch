@@ -2,6 +2,7 @@ node_modules/
 src/admin-config.js
 src-tauri/target/
 src-tauri/gen/
+mail-package/
 *.log
 .DS_Store
 Thumbs.db
