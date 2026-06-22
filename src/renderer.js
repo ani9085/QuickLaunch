@@ -40,6 +40,7 @@ let draft = null; // 편집 모달 임시 데이터
 let dragState = null;
 let suppressTileClick = false;
 let suppressDeckTabClick = false;
+let ptrDrag = null; // 포인터 이벤트 기반 드래그 상태
 const SAFE_ITEM_TYPES = new Set(["url", "app", "file", "folder", "hotkey"]);
 const DEFAULT_ICON = "📁";
 const DEFAULT_COLOR = "#2d3748";
@@ -228,6 +229,7 @@ function renderDeckTabs() {
     const b = document.createElement("button");
     b.className = "deck-tab" + (d.id === state.activeDeckId ? " active" : "");
     b.textContent = d.name;
+    b.dataset.deckId = d.id; // onPtrUp에서 드롭 대상 식별에 사용
     b.onclick = () => {
       if (suppressDeckTabClick) return;
       state.activeDeckId = d.id;
@@ -235,28 +237,6 @@ function renderDeckTabs() {
       renderAll();
       fitWindow();
     };
-    if (editMode) {
-      b.ondragenter = (e) => {
-        const payload = currentDragPayload(e);
-        if (!payload || payload.deckId === d.id) return;
-        e.preventDefault();
-      };
-      b.ondragover = (e) => {
-        const payload = currentDragPayload(e);
-        if (!payload || payload.deckId === d.id) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        b.classList.add("drop-target");
-      };
-      b.ondragleave = () => b.classList.remove("drop-target");
-      b.ondrop = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        suppressDeckTabClick = true;
-        b.classList.remove("drop-target");
-        moveDraggedToDeck(d.id, currentDragPayload(e));
-      };
-    }
     wrap.appendChild(b);
   });
 }
@@ -348,74 +328,107 @@ function clearDropTargets() {
   $$(".drop-target").forEach((el) => el.classList.remove("drop-target"));
 }
 
-function dragPayloadFromEvent(e) {
-  const raw =
-    e?.dataTransfer?.getData("application/x-quicklaunch-tile") ||
-    e?.dataTransfer?.getData("text/plain");
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed.deckId === "string" && Number.isInteger(parsed.slot)) {
-      return parsed;
-    }
-  } catch (_) {
-    const m = /^(.+):(\d+)$/.exec(raw);
-    if (m) return { deckId: m[1], slot: Number(m[2]) };
-  }
-
-  return null;
-}
-
-function currentDragPayload(e) {
-  return dragState || dragPayloadFromEvent(e);
-}
+// HTML5 drag API는 WebView2(Tauri/Windows)에서 신뢰할 수 없으므로
+// Pointer Events 기반으로 드래그 앤 드롭을 직접 구현
 
 function bindTileDrag(tile, deckId, slot, hasItem) {
-  if (!editMode) return;
-
-  tile.ondragenter = (e) => {
-    const payload = currentDragPayload(e);
-    if (!payload || payload.deckId !== deckId) return;
-    e.preventDefault();
-  };
-  tile.ondragover = (e) => {
-    const payload = currentDragPayload(e);
-    if (!payload || payload.deckId !== deckId) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    tile.classList.add("drop-target");
-  };
-  tile.ondragleave = () => tile.classList.remove("drop-target");
-  tile.ondrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    tile.classList.remove("drop-target");
-    moveDraggedToSlot(slot, currentDragPayload(e));
-  };
-
-  if (!hasItem) return;
-
-  tile.draggable = true;
+  if (!editMode || !hasItem) return;
   tile.classList.add("draggable");
-  tile.ondragstart = (e) => {
-    const payload = { deckId, slot };
-    dragState = payload;
+  tile.onpointerdown = (e) => {
+    if (e.button !== 0) return;
+    ptrDrag = {
+      payload: { deckId, slot },
+      startX: e.clientX,
+      startY: e.clientY,
+      active: false,
+      ghost: null,
+      srcTile: tile,
+    };
+  };
+}
+
+function onPtrMove(e) {
+  if (!ptrDrag || !editMode) return;
+  const dx = e.clientX - ptrDrag.startX;
+  const dy = e.clientY - ptrDrag.startY;
+
+  if (!ptrDrag.active) {
+    if (dx * dx + dy * dy < 36) return; // 6px 이동 후 드래그 시작
+    ptrDrag.active = true;
+    dragState = ptrDrag.payload;
     suppressTileClick = true;
-    tile.classList.add("dragging");
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("application/x-quicklaunch-tile", JSON.stringify(payload));
-    e.dataTransfer.setData("text/plain", `${deckId}:${slot}`);
-  };
-  tile.ondragend = () => {
-    tile.classList.remove("dragging");
-    clearDropTargets();
-    setTimeout(() => {
-      dragState = null;
-      suppressTileClick = false;
-      suppressDeckTabClick = false;
-    }, 0);
-  };
+    ptrDrag.srcTile.classList.add("dragging");
+
+    const rect = ptrDrag.srcTile.getBoundingClientRect();
+    const ghost = ptrDrag.srcTile.cloneNode(true);
+    ghost.style.cssText =
+      `position:fixed;width:${rect.width}px;height:${rect.height}px;` +
+      `opacity:0.8;pointer-events:none;z-index:9999;animation:none;transition:none;` +
+      `left:${e.clientX - rect.width / 2}px;top:${e.clientY - rect.height / 2}px;` +
+      `transform:scale(1.06);border-radius:var(--radius);`;
+    document.body.appendChild(ghost);
+    ptrDrag.ghost = ghost;
+    return;
+  }
+
+  const g = ptrDrag.ghost;
+  g.style.left = e.clientX - g.offsetWidth / 2 + "px";
+  g.style.top  = e.clientY - g.offsetHeight / 2 + "px";
+
+  clearDropTargets();
+  g.style.visibility = "hidden";
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  g.style.visibility = "";
+  if (!el) return;
+
+  const tt = el.closest(".tile");
+  const tb = el.closest(".deck-tab");
+  if (tt && tt !== ptrDrag.srcTile) tt.classList.add("drop-target");
+  if (tb && tb.dataset.deckId && tb.dataset.deckId !== ptrDrag.payload.deckId)
+    tb.classList.add("drop-target");
+}
+
+function onPtrUp(e) {
+  if (!ptrDrag) return;
+  const { active, ghost, srcTile, payload } = ptrDrag;
+  ptrDrag = null;
+
+  if (!active) return;
+
+  if (ghost) ghost.style.visibility = "hidden";
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  if (ghost) ghost.remove();
+  srcTile.classList.remove("dragging");
+  clearDropTargets();
+
+  if (el) {
+    const tt = el.closest(".tile");
+    const tb = el.closest(".deck-tab");
+    if (tt && tt !== srcTile) {
+      const s = parseInt(tt.dataset.slot, 10);
+      if (!isNaN(s)) moveDraggedToSlot(s, payload);
+    } else if (tb && tb.dataset.deckId) {
+      suppressDeckTabClick = true;
+      moveDraggedToDeck(tb.dataset.deckId, payload);
+    }
+  }
+
+  setTimeout(() => {
+    dragState = null;
+    suppressTileClick = false;
+    suppressDeckTabClick = false;
+  }, 0);
+}
+
+function onPtrCancel() {
+  if (!ptrDrag) return;
+  if (ptrDrag.ghost) ptrDrag.ghost.remove();
+  ptrDrag.srcTile.classList.remove("dragging");
+  clearDropTargets();
+  ptrDrag = null;
+  dragState = null;
+  suppressTileClick = false;
+  suppressDeckTabClick = false;
 }
 
 function moveDraggedToSlot(targetSlot, payload = dragState) {
@@ -1385,6 +1398,11 @@ function bindEvents() {
   $("#libraryBtn").onclick = () => { buildLibraryFull(); show("libraryModal"); };
   $("#settingsBtn").onclick = openSettings;
   $("#quitBtn").onclick = () => window.api.quitApp();
+
+  // 포인터 이벤트 기반 드래그 앤 드롭 (HTML5 drag API 대체)
+  document.addEventListener("pointermove", onPtrMove);
+  document.addEventListener("pointerup", onPtrUp);
+  document.addEventListener("pointercancel", onPtrCancel);
 
   // 모달 닫기 (x, data-close)
   $$("[data-close]").forEach((b) => (b.onclick = () => hide(b.dataset.close)));
