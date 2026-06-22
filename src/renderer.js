@@ -1,7 +1,7 @@
 /* ============================ QuickLaunch 렌더러 ============================ */
 // 빌드(코드) 기본 버전. 라이브러리 외 다른 부분을 수정해 새 exe를 배포할 때 올리세요.
 // 관리자 설정에서 덮어쓰면 state.settings.appVersion 이 우선합니다.
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.0.4";
 
 function appVersion() {
   return (state && state.settings && state.settings.appVersion) || APP_VERSION;

@@ -1,6 +1,6 @@
 {
   "name": "quicklaunch",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "엘가토 스트림덱 스타일의 로컬 바로가기 런처 (Stream Deck-style local shortcut launcher)",
   "author": "ani9085",
   "license": "MIT",

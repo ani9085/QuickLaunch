@@ -21,7 +21,8 @@
 | **내보내기/가져오기** | 프로필을 `.json`으로 저장·공유 (덱 단위 병합) |
 | **여러 덱(프로필)** | 업무별로 탭을 나눠 관리 |
 | **전역 단축키** | `Ctrl+Shift+Space`로 어디서나 창 열기/숨기기 |
-| **트레이 상주 / 검색 / 편집 모드** | 닫아도 트레이 상주, 타일 검색, 편집 모드에서 추가·수정·삭제 |
+| **트레이 상주 / 검색 / 편집 모드** | 닫아도 트레이 상주, 타일 검색, 편집 모드에서 추가·수정·삭제·드래그 이동 |
+| **드래그 정렬 / 덱 간 이동** | 편집 모드에서 타일 위치 교환, 빈칸 이동, 다른 덱 탭으로 이동 |
 
 ## 🚀 개발 실행
 
@@ -37,7 +38,7 @@ QuickLaunch는 Tauri(Rust + OS WebView2)만 공식 빌드로 사용합니다. UI
 ```bash
 # 사전 준비: Rust(rustup) + Visual Studio Build Tools(C++) + WebView2
 npm install
-npm run build      # → src-tauri/target/release/bundle/nsis/QuickLaunch_1.0.0_x64-setup.exe
+npm run build      # → src-tauri/target/release/bundle/nsis/QuickLaunch_1.0.4_x64-setup.exe
 npm run dev        # 개발 실행
 ```
 
@@ -46,6 +47,27 @@ URL 바로가기는 `http://`, `https://`, `ms-screenclip:`만 허용하며, 앱
 Windows Store/AppX 앱은 `shell:AppsFolder\패키지!앱ID` 형식으로 실행할 수 있습니다.
 
 빌드와 배포 기준은 [BUILD_POLICY.md](BUILD_POLICY.md)에 정리되어 있습니다.
+
+## 🧱 릴리스 빌드
+
+GitHub Actions의 `Release` 워크플로가 Windows 빌드를 생성합니다. 태그(`v*`)를 푸시하거나 수동 실행(`workflow_dispatch`)할 수 있으며, 릴리스에는 다음 파일이 올라갑니다.
+
+| 파일 | 설명 |
+| --- | --- |
+| `QuickLaunch.exe` | 설치 없이 실행하는 포터블 실행 파일 |
+| `QuickLaunch_*_x64-setup.exe` | NSIS 설치 파일 |
+
+워크플로는 GitHub Secret `ADMIN_PASSWORD`가 있으면 빌드 시 `src/admin-config.js`를 자동 생성합니다. Secret이 없으면 기본 안내값으로 빌드되므로, 배포용 관리자 비밀번호가 필요하면 저장소 Secret을 먼저 설정하세요.
+
+## 🖱️ 편집 모드 드래그
+
+편집 모드에서 타일을 끌어 다음 작업을 할 수 있습니다.
+
+- 같은 덱의 빈칸에 놓으면 해당 칸으로 이동합니다.
+- 같은 덱의 다른 타일 위에 놓으면 두 타일의 위치가 바뀝니다.
+- 상단의 다른 덱 탭 위에 놓으면 그 덱의 첫 빈칸으로 이동합니다.
+
+이 드래그 기능은 Windows WebView2/Tauri 환경에서 안정적으로 동작하도록 HTML5 Drag API 대신 Pointer Events 기반으로 구현되어 있습니다.
 
 ## 🧭 Windows 앱 대상 예시
 
